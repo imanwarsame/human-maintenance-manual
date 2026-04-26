@@ -1,22 +1,40 @@
 import { useState } from 'react';
 import { useActivitiesForDateRange } from '../hooks/useActivitiesForDateRange.ts';
-import { useLogActivity } from '../hooks/useActivities.ts';
 import ActivityCard from '../components/ActivityCard.tsx';
 import WorkoutPlanCard from '../components/WorkoutPlanCard.tsx';
 import RunPlanCard from '../components/RunPlanCard.tsx';
 import type { Activity } from '../types/index.ts';
 
-const ACTIVITY_TYPES = ['run', 'strength', 'cycling', 'football', 'swim', 'walk', 'hike', 'other'];
+// Light pastel backgrounds per activity type — used for day cell colouring
+const TYPE_BG: Record<string, string> = {
+  run:      '#FED7AA', // orange-200
+  cycling:  '#A5F3FC', // cyan-200
+  strength: '#DDD6FE', // violet-200
+  football: '#BBF7D0', // green-200
+  swim:     '#BAE6FD', // sky-200
+  walk:     '#D9F99D', // lime-200
+  hike:     '#FDE68A', // amber-200
+  other:    '#E5E7EB', // gray-200
+};
+
+function activityBg(activities: Activity[]): string | undefined {
+  if (activities.length === 0) return undefined;
+  const types = [...new Set(activities.map((a) => a.type))];
+  const colors = types.slice(0, 3).map((t) => TYPE_BG[t] ?? TYPE_BG.other);
+  if (colors.length === 1) return colors[0];
+  if (colors.length === 2)
+    return `linear-gradient(135deg, ${colors[0]} 50%, ${colors[1]} 50%)`;
+  return `linear-gradient(135deg, ${colors[0]} 33%, ${colors[1]} 33% 66%, ${colors[2]} 66%)`;
+}
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function getWeekDays(offset: number): Date[] {
-  const now = new Date();
-  const day = now.getDay();
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
+function weekContaining(dateStr: string): Date[] {
+  const d = new Date(dateStr);
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return Array.from({ length: 7 }, (_, i) => {
     const x = new Date(mon);
     x.setDate(mon.getDate() + i);
@@ -24,60 +42,37 @@ function getWeekDays(offset: number): Date[] {
   });
 }
 
-function getMonthDays(year: number, month: number): (Date | null)[] {
+function monthGrid(year: number, month: number): (Date | null)[] {
   const first = new Date(year, month, 1);
-  const startOffset = (first.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells: (Date | null)[] = Array(startOffset).fill(null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push(new Date(year, month, d));
-  }
+  const offset = (first.getDay() + 6) % 7;
+  const days = new Date(year, month + 1, 0).getDate();
+  const cells: (Date | null)[] = Array(offset).fill(null);
+  for (let d = 1; d <= days; d++) cells.push(new Date(year, month, d));
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
 }
 
 const TODAY = toDateStr(new Date());
-
-function DayActivityDots({ activities }: { activities: Activity[] }) {
-  if (activities.length === 0) return null;
-  return (
-    <div className="flex gap-0.5 justify-center mt-0.5">
-      {activities.slice(0, 3).map((a, i) => (
-        <span
-          key={i}
-          className={`w-1.5 h-1.5 rounded-full ${a.is_planned ? 'border border-brand-400' : 'bg-brand-400'}`}
-          title={a.type}
-        />
-      ))}
-    </div>
-  );
-}
+const FIFTEEN_MIN = 15 * 60 * 1000;
 
 function DayDetail({ date, activities }: { date: string; activities: Activity[] }) {
   const dayActivities = activities.filter((a) => a.date === date);
-  const isPast = date < TODAY;
-  const isFut = date > TODAY;
-
   if (dayActivities.length === 0) {
-    return (
-      <p className="text-sm text-gray-400 text-center py-6">
-        {isFut ? 'No workout planned for this day.' : isPast ? 'No activity recorded.' : 'No activity yet today.'}
-      </p>
-    );
+    const label =
+      date > TODAY
+        ? 'No workout planned for this day.'
+        : date < TODAY
+        ? 'No activity recorded.'
+        : 'No activity yet today.';
+    return <p className="text-sm text-gray-400 text-center py-6">{label}</p>;
   }
-
   return (
     <div className="space-y-3">
       {dayActivities.map((a) => {
         if (a.is_planned) {
           if (a.type === 'run' && a.raw_json?.run_plan) {
             return (
-              <RunPlanCard
-                key={a.id}
-                plan={a.raw_json.run_plan}
-                notes={a.notes}
-                duration_mins={a.duration_mins}
-              />
+              <RunPlanCard key={a.id} plan={a.raw_json.run_plan} notes={a.notes} duration_mins={a.duration_mins} />
             );
           }
           return (
@@ -98,49 +93,38 @@ function DayDetail({ date, activities }: { date: string; activities: Activity[] 
 
 export default function Activity() {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
-  const [weekOffset, setWeekOffset] = useState(0);
-  const [monthOffset, setMonthOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState(TODAY);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    date: TODAY,
-    type: 'run',
-    duration_mins: '',
-    distance_km: '',
-    avg_hr: '',
-    notes: '',
-  });
 
-  const { mutate: logActivity, isPending } = useLogActivity();
+  const selD = new Date(selectedDate);
 
-  const weekDays = getWeekDays(weekOffset);
+  // Week range always derived from selectedDate
+  const weekDays = weekContaining(selectedDate);
   const weekStart = toDateStr(weekDays[0]);
   const weekEnd = toDateStr(weekDays[6]);
 
-  const now = new Date();
-  const monthYear = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
-  const monthDays = getMonthDays(monthYear.getFullYear(), monthYear.getMonth());
-  const monthStart = toDateStr(new Date(monthYear.getFullYear(), monthYear.getMonth(), 1));
-  const monthEnd = toDateStr(new Date(monthYear.getFullYear(), monthYear.getMonth() + 1, 0));
+  // Month range always derived from selectedDate
+  const monthStart = toDateStr(new Date(selD.getFullYear(), selD.getMonth(), 1));
+  const monthEnd = toDateStr(new Date(selD.getFullYear(), selD.getMonth() + 1, 0));
+  const monthCells = monthGrid(selD.getFullYear(), selD.getMonth());
 
   const rangeStart = viewMode === 'week' ? weekStart : monthStart;
   const rangeEnd = viewMode === 'week' ? weekEnd : monthEnd;
 
-  const { data: activities = [], isLoading } = useActivitiesForDateRange(rangeStart, rangeEnd);
+  const { data: activities = [], isLoading } = useActivitiesForDateRange(
+    rangeStart,
+    rangeEnd,
+    { refetchInterval: FIFTEEN_MIN }
+  );
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    logActivity(
-      {
-        date: form.date,
-        type: form.type,
-        duration_mins: form.duration_mins ? Number(form.duration_mins) : undefined,
-        distance_km: form.distance_km ? Number(form.distance_km) : undefined,
-        avg_hr: form.avg_hr ? Number(form.avg_hr) : undefined,
-        notes: form.notes || undefined,
-      },
-      { onSuccess: () => setShowForm(false) }
-    );
+  function shiftWeek(delta: number) {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + delta * 7);
+    setSelectedDate(toDateStr(d));
+  }
+
+  function shiftMonth(delta: number) {
+    const d = new Date(selD.getFullYear(), selD.getMonth() + delta, 1);
+    setSelectedDate(toDateStr(d));
   }
 
   const weekLabel = (() => {
@@ -149,7 +133,13 @@ export default function Activity() {
     return `${s} – ${e}`;
   })();
 
-  const monthLabel = monthYear.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthLabel = selD.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+  const isOnToday =
+    viewMode === 'week'
+      ? weekDays.some((d) => toDateStr(d) === TODAY)
+      : selD.getFullYear() === new Date().getFullYear() &&
+        selD.getMonth() === new Date().getMonth();
 
   return (
     <div className="space-y-4">
@@ -170,12 +160,14 @@ export default function Activity() {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="text-sm font-medium text-brand-600 hover:text-brand-700"
-          >
-            {showForm ? 'Cancel' : '+ Log'}
-          </button>
+          {!isOnToday && (
+            <button
+              onClick={() => setSelectedDate(TODAY)}
+              className="text-xs font-medium text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors"
+            >
+              Today
+            </button>
+          )}
         </div>
       </div>
 
@@ -183,50 +175,41 @@ export default function Activity() {
       {viewMode === 'week' && (
         <>
           <div className="flex items-center justify-between text-sm text-gray-600">
-            <button onClick={() => setWeekOffset((o) => o - 1)} className="p-1 rounded hover:bg-gray-100">‹</button>
-            <button
-              onClick={() => { setWeekOffset(0); setSelectedDate(TODAY); }}
-              className="font-medium hover:text-brand-600 transition-colors"
-            >
-              {weekLabel}
-            </button>
-            <button onClick={() => setWeekOffset((o) => o + 1)} className="p-1 rounded hover:bg-gray-100">›</button>
+            <button onClick={() => shiftWeek(-1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">‹</button>
+            <span className="font-medium">{weekLabel}</span>
+            <button onClick={() => shiftWeek(1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">›</button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-1.5">
             {weekDays.map((d) => {
               const str = toDateStr(d);
-              const dayActivities = activities.filter((a) => a.date === str);
+              const dayActs = activities.filter((a) => a.date === str);
               const isSelected = str === selectedDate;
               const isT = str === TODAY;
+              const bg = isSelected ? undefined : activityBg(dayActs);
+
               return (
                 <button
                   key={str}
                   onClick={() => setSelectedDate(str)}
-                  className={`flex flex-col items-center py-1.5 rounded-xl text-xs transition-colors ${
+                  style={bg ? { background: bg } : undefined}
+                  className={[
+                    'flex flex-col items-center py-2 rounded-xl text-xs transition-all',
                     isSelected
-                      ? 'bg-brand-600 text-white'
+                      ? 'bg-brand-600 text-white shadow-md'
+                      : bg
+                      ? 'text-gray-700 hover:opacity-80'
                       : isT
                       ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : 'text-gray-500 hover:bg-gray-100'
-                  }`}
+                      : 'text-gray-400 hover:bg-gray-100',
+                  ].join(' ')}
                 >
-                  <span className="font-medium">
+                  <span className="font-medium leading-none mb-1">
                     {d.toLocaleDateString('en-GB', { weekday: 'narrow' })}
                   </span>
-                  <span>{d.getDate()}</span>
-                  {dayActivities.length > 0 && (
-                    <div className="flex gap-0.5 mt-0.5">
-                      {dayActivities.slice(0, 2).map((a, i) => (
-                        <span
-                          key={i}
-                          className={`w-1 h-1 rounded-full ${
-                            isSelected ? 'bg-white' : a.is_planned ? 'border border-brand-400' : 'bg-brand-400'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <span className={isT && !isSelected ? 'underline underline-offset-2 decoration-brand-400' : ''}>
+                    {d.getDate()}
+                  </span>
                 </button>
               );
             })}
@@ -238,40 +221,42 @@ export default function Activity() {
       {viewMode === 'month' && (
         <>
           <div className="flex items-center justify-between text-sm text-gray-600">
-            <button onClick={() => setMonthOffset((o) => o - 1)} className="p-1 rounded hover:bg-gray-100">‹</button>
-            <button
-              onClick={() => { setMonthOffset(0); setSelectedDate(TODAY); }}
-              className="font-medium hover:text-brand-600 transition-colors"
-            >
-              {monthLabel}
-            </button>
-            <button onClick={() => setMonthOffset((o) => o + 1)} className="p-1 rounded hover:bg-gray-100">›</button>
+            <button onClick={() => shiftMonth(-1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">‹</button>
+            <span className="font-medium">{monthLabel}</span>
+            <button onClick={() => shiftMonth(1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">›</button>
           </div>
 
-          <div className="grid grid-cols-7 gap-px">
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-              <p key={i} className="text-center text-xs text-gray-400 py-1 font-medium">{d}</p>
+          <div className="grid grid-cols-7 gap-1">
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((h, i) => (
+              <p key={i} className="text-center text-xs text-gray-400 pb-1 font-medium">{h}</p>
             ))}
-            {monthDays.map((d, i) => {
+            {monthCells.map((d, i) => {
               if (!d) return <div key={i} />;
               const str = toDateStr(d);
-              const dayActivities = activities.filter((a) => a.date === str);
+              const dayActs = activities.filter((a) => a.date === str);
               const isSelected = str === selectedDate;
               const isT = str === TODAY;
+              const bg = isSelected ? undefined : activityBg(dayActs);
+
               return (
                 <button
                   key={str}
                   onClick={() => setSelectedDate(str)}
-                  className={`flex flex-col items-center py-1 rounded-lg text-xs transition-colors ${
+                  style={bg ? { background: bg } : undefined}
+                  className={[
+                    'flex items-center justify-center rounded-lg text-xs h-8 transition-all',
                     isSelected
-                      ? 'bg-brand-600 text-white'
+                      ? 'bg-brand-600 text-white shadow-sm'
+                      : bg
+                      ? 'text-gray-700 hover:opacity-80'
                       : isT
                       ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : 'text-gray-500 hover:bg-gray-100'
-                  }`}
+                      : 'text-gray-400 hover:bg-gray-100',
+                  ].join(' ')}
                 >
-                  <span>{d.getDate()}</span>
-                  <DayActivityDots activities={dayActivities} />
+                  <span className={isT && !isSelected ? 'underline underline-offset-2 decoration-brand-400' : ''}>
+                    {d.getDate()}
+                  </span>
                 </button>
               );
             })}
@@ -279,100 +264,24 @@ export default function Activity() {
         </>
       )}
 
-      {/* Selected day detail */}
-      {!isLoading && (
-        <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+      {/* Day detail */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {[0, 1].map((i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-100 h-20 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            {new Date(selectedDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+            {new Date(selectedDate).toLocaleDateString('en-GB', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}
           </p>
           <DayDetail date={selectedDate} activities={activities} />
         </div>
-      )}
-
-      {isLoading && (
-        <div className="space-y-3">
-          {[0, 1].map((i) => <div key={i} className="bg-white rounded-xl border border-gray-100 h-20 animate-pulse" />)}
-        </div>
-      )}
-
-      {/* Manual log form */}
-      {showForm && (
-        <form onSubmit={submit} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-700">Log activity</p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Date</label>
-              <input
-                type="date"
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                required
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Type</label>
-              <select
-                value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-              >
-                {ACTIVITY_TYPES.map((t) => (
-                  <option key={t} value={t} className="capitalize">{t}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Duration (min)</label>
-              <input
-                type="number" min={1} placeholder="e.g. 45"
-                value={form.duration_mins}
-                onChange={(e) => setForm({ ...form, duration_mins: e.target.value })}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Distance (km)</label>
-              <input
-                type="number" min={0} step={0.01} placeholder="e.g. 5.0"
-                value={form.distance_km}
-                onChange={(e) => setForm({ ...form, distance_km: e.target.value })}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Avg HR (bpm)</label>
-              <input
-                type="number" min={1} placeholder="e.g. 145"
-                value={form.avg_hr}
-                onChange={(e) => setForm({ ...form, avg_hr: e.target.value })}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Notes</label>
-            <input
-              type="text" placeholder="Optional notes"
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-40 transition-colors"
-          >
-            {isPending ? 'Saving…' : 'Log activity'}
-          </button>
-        </form>
       )}
     </div>
   );
