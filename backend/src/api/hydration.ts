@@ -1,8 +1,24 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { logWater } from '../db/queries/hydration.js';
+import { logWater, getHydrationForDate, getHydrationForDateRange } from '../db/queries/hydration.js';
 
 const router = Router();
+
+router.get('/', async (req, res, next) => {
+  try {
+    const { date, from, to } = req.query as Record<string, string | undefined>;
+    if (from && to) {
+      const logs = await getHydrationForDateRange(from, to);
+      res.json(logs);
+      return;
+    }
+    const d = date ?? new Date().toISOString().slice(0, 10);
+    const summary = await getHydrationForDate(d);
+    res.json(summary);
+  } catch (err) {
+    next(err);
+  }
+});
 
 const LogWaterSchema = z.object({
   amount_ml: z.number().int().positive(),

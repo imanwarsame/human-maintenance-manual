@@ -6,7 +6,12 @@
       "Bash(npx tsc *)",
       "Bash(npm run *)",
       "Bash(curl -s http://localhost:5173/)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "mcp__scheduled-tasks__create_scheduled_task",
+      "mcp__c5cfe6d6-7b04-4dd3-82be-620c6a65d7ed__get_today",
+      "mcp__c5cfe6d6-7b04-4dd3-82be-620c6a65d7ed__get_week",
+      "mcp__c5cfe6d6-7b04-4dd3-82be-620c6a65d7ed__get_plan_context",
+      "mcp__c5cfe6d6-7b04-4dd3-82be-620c6a65d7ed__write_coaching_note"
     ]
   }
 }

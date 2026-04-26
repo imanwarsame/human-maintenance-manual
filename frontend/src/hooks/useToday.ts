@@ -20,7 +20,10 @@ export function useLogWater() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (amount_ml: number) => api.post('/api/hydration', { amount_ml }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['today'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['today'] });
+      qc.invalidateQueries({ queryKey: ['hydration'] });
+    },
   });
 }
 
