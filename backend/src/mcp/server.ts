@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Express, Request, Response } from 'express';
 import { mcpAuth } from './auth.js';
 import { registerSummaryTools } from './tools/summaryTools.js';
@@ -26,29 +26,18 @@ function createMcpServer(): McpServer {
 }
 
 export function mountMcp(app: Express): void {
-  // Track active transports for cleanup
-  const transports = new Map<string, SSEServerTransport>();
-
-  app.get('/mcp', mcpAuth, async (req: Request, res: Response) => {
-    const transport = new SSEServerTransport('/mcp/message', res);
-    const sessionId = transport.sessionId;
-    transports.set(sessionId, transport);
+  // Stateless streamable HTTP transport — single endpoint, no session tracking needed
+  app.all('/mcp', mcpAuth, async (req: Request, res: Response) => {
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // stateless: no session persistence
+    });
 
     res.on('close', () => {
-      transports.delete(sessionId);
+      transport.close();
     });
 
     const server = createMcpServer();
     await server.connect(transport);
-  });
-
-  app.post('/mcp/message', mcpAuth, async (req: Request, res: Response) => {
-    const sessionId = req.query.sessionId as string;
-    const transport = transports.get(sessionId);
-    if (!transport) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
-    }
-    await transport.handlePostMessage(req, res);
+    await transport.handleRequest(req, res, req.body);
   });
 }
