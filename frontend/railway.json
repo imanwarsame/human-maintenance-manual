@@ -5,6 +5,6 @@
     "buildCommand": "npm run build"
   },
   "deploy": {
-    "startCommand": "npx serve -s frontend/dist -l $PORT"
+    "startCommand": "npx serve -s dist -l $PORT"
   }
 }
