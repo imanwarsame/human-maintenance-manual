@@ -14,6 +14,7 @@ Frontend (React/Vite)  ──REST──▶  Backend (Express + MCP server)  ─�
 - **Backend**: Single Node.js/Express process — REST API on `/api`, MCP server on `/mcp`
 - **Database**: Supabase (Postgres). Service key lives only in the backend.
 - **Auth**: Supabase magic link. Claude connects via MCP bearer token only.
+- **Activity sync**: Garmin → Strava (via Garmin's built-in Strava sync) → this app via Strava webhook. No direct Garmin integration needed.
 
 ---
 
@@ -42,8 +43,6 @@ SUPABASE_SERVICE_KEY=your-service-role-key
 STRAVA_CLIENT_ID=your-strava-client-id
 STRAVA_CLIENT_SECRET=your-strava-client-secret
 STRAVA_VERIFY_TOKEN=random-string-for-webhook-verification
-GARMIN_USERNAME=your-garmin-email
-GARMIN_PASSWORD=your-garmin-password
 MCP_SECRET=long-random-bearer-token-for-claude
 APP_URL=http://localhost:3000
 ```
@@ -63,11 +62,14 @@ npm run dev:backend  # starts Express on :3000
 npm run dev:frontend # starts Vite on :5173
 ```
 
-### 4. Connect Strava (optional)
+### 4. Connect Strava
+
+Activity sync flow: **Garmin → Strava** (via Garmin's built-in Strava integration) **→ this app** via Strava webhook. You only need to connect Strava — Garmin feeds it automatically.
 
 1. Register an app at [strava.com/settings/api](https://www.strava.com/settings/api). Set callback domain to your host.
-2. Visit `http://localhost:3000/strava/connect` and complete OAuth.
-3. Register the webhook once (replace values):
+2. In Garmin Connect, enable the Strava integration under Settings → Connected Apps (if not already active).
+3. Visit `http://localhost:3000/strava/connect` and complete OAuth to authorise the backend.
+4. Register the Strava webhook once (do this after deploying, so the URL is publicly reachable):
    ```bash
    curl -X POST https://www.strava.com/api/v3/push_subscriptions \
      -d "client_id=$STRAVA_CLIENT_ID" \
@@ -75,17 +77,9 @@ npm run dev:frontend # starts Vite on :5173
      -d "callback_url=https://your-host/strava/webhook" \
      -d "verify_token=$STRAVA_VERIFY_TOKEN"
    ```
-4. Backfill existing activities: `POST https://your-host/strava/webhook/sync-all`
+5. Backfill existing Strava activities: `POST https://your-host/strava/webhook/sync-all`
 
-### 5. Connect Garmin (optional)
-
-Garmin Connect does not have a public OAuth API. The backend uses the `garmin-connect` npm package with username/password. Trigger a manual sync:
-
-```bash
-curl -X POST http://localhost:3000/garmin/sync
-```
-
-> **Note**: Garmin's unofficial API is fragile and may break with account changes. Manual activity entry via the Activity screen is always available as a fallback.
+Manual activity entry via the Activity screen is always available as a fallback.
 
 ---
 
@@ -198,7 +192,7 @@ Health check: `GET https://your-service.railway.app/health`
 See `supabase/migrations/002_tables.sql` for the full schema. Tables:
 
 - `hydration_logs` — water intake entries
-- `activities` — training sessions (Strava, Garmin, manual)
+- `activities` — training sessions (Strava-synced from Garmin, or manual)
 - `meal_plans` — Claude-written or manual meal plan entries
 - `meal_completions` — timestamps when meals were eaten
 - `meal_deviations` — deviations from the plan

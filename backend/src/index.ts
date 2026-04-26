@@ -5,7 +5,6 @@ import apiRouter from './api/router.js';
 import { mountMcp } from './mcp/server.js';
 import stravaOauthRouter from './strava/oauth.js';
 import stravaWebhookRouter from './strava/webhook.js';
-import garminRouter from './garmin/sync.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -28,9 +27,6 @@ app.use('/api', apiRouter);
 // Strava integration
 app.use('/strava', stravaOauthRouter);
 app.use('/strava/webhook', stravaWebhookRouter);
-
-// Garmin integration
-app.use('/garmin', garminRouter);
 
 app.use(errorHandler);
 
