@@ -105,3 +105,29 @@ export async function getActivitiesForDateRange(from: string, to: string): Promi
   if (error) throw error;
   return data ?? [];
 }
+
+export async function deleteActivity(id: string): Promise<void> {
+  const { error } = await supabase.from('activities').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteActivitiesForDate(date: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('activities')
+    .delete()
+    .eq('date', date)
+    .select('id');
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
+export async function deleteActivitiesForDateRange(from: string, to: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('activities')
+    .delete()
+    .gte('date', from)
+    .lte('date', to)
+    .select('id');
+  if (error) throw error;
+  return data?.length ?? 0;
+}

@@ -1,6 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { logActivity, getActivities, getActivitiesForDateRange } from '../../db/queries/activities.js';
+import {
+  logActivity,
+  getActivities,
+  getActivitiesForDateRange,
+  deleteActivity,
+  deleteActivitiesForDate,
+  deleteActivitiesForDateRange,
+} from '../../db/queries/activities.js';
 
 const ExerciseSchema = z.object({
   name: z.string().describe('Exercise name'),
@@ -65,6 +72,39 @@ export function registerActivityTools(server: McpServer): void {
         is_planned: true,
       });
       return { content: [{ type: 'text', text: JSON.stringify(activity) }] };
+    }
+  );
+
+  server.tool(
+    'delete_activity',
+    'Delete a single activity by its ID.',
+    {
+      id: z.string().uuid().describe('Activity UUID to delete'),
+    },
+    async ({ id }) => {
+      await deleteActivity(id);
+      return { content: [{ type: 'text', text: JSON.stringify({ deleted: id }) }] };
+    }
+  );
+
+  server.tool(
+    'clear_activities',
+    'Delete all activities for a specific date or date range. Use date to clear one day, or from+to to clear a range (e.g. a full week). Affects both logged and planned activities.',
+    {
+      date: z.string().optional().describe('Single date to clear (YYYY-MM-DD). Mutually exclusive with from/to.'),
+      from: z.string().optional().describe('Start of date range to clear (YYYY-MM-DD).'),
+      to: z.string().optional().describe('End of date range to clear (YYYY-MM-DD).'),
+    },
+    async ({ date, from, to }) => {
+      if (date) {
+        const count = await deleteActivitiesForDate(date);
+        return { content: [{ type: 'text', text: JSON.stringify({ cleared_date: date, deleted_count: count }) }] };
+      }
+      if (from && to) {
+        const count = await deleteActivitiesForDateRange(from, to);
+        return { content: [{ type: 'text', text: JSON.stringify({ cleared_from: from, cleared_to: to, deleted_count: count }) }] };
+      }
+      return { content: [{ type: 'text', text: JSON.stringify({ error: 'Provide either date or both from and to.' }) }] };
     }
   );
 
