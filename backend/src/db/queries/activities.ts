@@ -2,6 +2,32 @@ import { supabase } from '../supabase.js';
 
 export type ActivitySource = 'strava' | 'garmin' | 'manual';
 
+export interface Exercise {
+  name: string;
+  sets: number;
+  reps: number;
+  weight_kg?: number;
+}
+
+export interface RunInterval {
+  type: 'warmup' | 'interval' | 'recovery' | 'cooldown';
+  distance_km: number;
+  pace_min_per_km: string;
+  repeats?: number;
+}
+
+export interface RunPlan {
+  total_distance_km: number;
+  target_pace_min_per_km: string;
+  intervals?: RunInterval[];
+}
+
+export interface ActivityRawJson {
+  exercises?: Exercise[];
+  run_plan?: RunPlan;
+  [key: string]: unknown;
+}
+
 export interface Activity {
   id: string;
   date: string;
@@ -10,9 +36,10 @@ export interface Activity {
   duration_mins: number | null;
   distance_km: number | null;
   avg_hr: number | null;
-  raw_json: Record<string, unknown> | null;
+  raw_json: ActivityRawJson | null;
   notes: string | null;
   external_id: string | null;
+  is_planned: boolean;
 }
 
 export interface CreateActivityInput {
@@ -22,9 +49,10 @@ export interface CreateActivityInput {
   duration_mins?: number;
   distance_km?: number;
   avg_hr?: number;
-  raw_json?: Record<string, unknown>;
+  raw_json?: ActivityRawJson;
   notes?: string;
   external_id?: string;
+  is_planned?: boolean;
 }
 
 export async function logActivity(input: CreateActivityInput): Promise<Activity> {

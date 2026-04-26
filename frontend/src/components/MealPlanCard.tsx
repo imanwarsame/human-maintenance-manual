@@ -12,9 +12,10 @@ const MEAL_LABELS: Record<string, string> = {
 
 interface Props {
   meal: MealPlan;
+  readOnly?: boolean;
 }
 
-export default function MealPlanCard({ meal }: Props) {
+export default function MealPlanCard({ meal, readOnly = false }: Props) {
   const [showDeviation, setShowDeviation] = useState(false);
   const { mutate: markEaten, isPending } = useMarkMealEaten();
   const isEaten = meal.completion !== null;
@@ -28,11 +29,13 @@ export default function MealPlanCard({ meal }: Props) {
       >
         <div className="flex items-start gap-3">
           <button
-            onClick={() => !isEaten && markEaten(meal.id)}
-            disabled={isPending || isEaten}
+            onClick={() => !isEaten && !readOnly && markEaten(meal.id)}
+            disabled={isPending || isEaten || readOnly}
             className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
               isEaten
                 ? 'border-brand-500 bg-brand-500'
+                : readOnly
+                ? 'border-gray-200 cursor-default'
                 : 'border-gray-300 hover:border-brand-500'
             }`}
           >
@@ -50,10 +53,10 @@ export default function MealPlanCard({ meal }: Props) {
               <p className="text-xs text-gray-500 mt-0.5">{meal.description}</p>
             )}
             <div className="flex gap-3 mt-1 text-xs text-gray-400">
-              {meal.kcal && <span>{meal.kcal} kcal</span>}
-              {meal.protein_g && <span>{meal.protein_g}g protein</span>}
-              {meal.carbs_g && <span>{meal.carbs_g}g carbs</span>}
-              {meal.fat_g && <span>{meal.fat_g}g fat</span>}
+              {meal.kcal != null && <span>{meal.kcal} kcal</span>}
+              {meal.protein_g != null && <span>{meal.protein_g}g protein</span>}
+              {meal.carbs_g != null && <span>{meal.carbs_g}g carbs</span>}
+              {meal.fat_g != null && <span>{meal.fat_g}g fat</span>}
             </div>
             {meal.prep_notes && (
               <p className="text-xs text-gray-400 mt-1 italic">{meal.prep_notes}</p>

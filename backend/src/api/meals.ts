@@ -1,8 +1,18 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { markMealEaten, logMealDeviation } from '../db/queries/meals.js';
+import { markMealEaten, logMealDeviation, getMealPlansForDate } from '../db/queries/meals.js';
 
 const router = Router();
+
+router.get('/', async (req, res, next) => {
+  try {
+    const date = (req.query.date as string | undefined) ?? new Date().toISOString().slice(0, 10);
+    const meals = await getMealPlansForDate(date);
+    res.json(meals);
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.post('/:id/complete', async (req, res, next) => {
   try {

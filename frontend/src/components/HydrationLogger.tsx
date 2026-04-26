@@ -1,15 +1,15 @@
-import { useState } from 'react';
-import { useLogWater } from '../hooks/useToday.ts';
+import { useState } from "react";
+import { useLogWater } from "../hooks/useToday.ts";
 
-const QUICK_AMOUNTS = [150, 250, 330, 500, 750];
+const QUICK_AMOUNTS = [150, 250, 300, 500, 750];
 
 export default function HydrationLogger() {
-  const [custom, setCustom] = useState('');
+  const [custom, setCustom] = useState("");
   const { mutate, isPending } = useLogWater();
 
   function log(ml: number) {
     if (ml > 0) mutate(ml);
-    setCustom('');
+    setCustom("");
   }
 
   return (

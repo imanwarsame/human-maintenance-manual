@@ -1,11 +1,17 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { getActivities, logActivity } from '../db/queries/activities.js';
+import { getActivities, getActivitiesForDateRange, logActivity } from '../db/queries/activities.js';
 
 const router = Router();
 
 router.get('/', async (req, res, next) => {
   try {
+    const { from, to } = req.query as Record<string, string | undefined>;
+    if (from && to) {
+      const activities = await getActivitiesForDateRange(from, to);
+      res.json(activities);
+      return;
+    }
     const limit = Math.min(Number(req.query.limit ?? 20), 100);
     const activities = await getActivities(limit);
     res.json(activities);

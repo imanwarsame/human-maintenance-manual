@@ -1,0 +1,1 @@
+ALTER TABLE activities ADD COLUMN is_planned BOOLEAN NOT NULL DEFAULT false;
