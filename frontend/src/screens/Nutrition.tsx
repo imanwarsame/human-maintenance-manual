@@ -8,7 +8,10 @@ import type { MealPlan, MealType } from '../types/index.ts';
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getWeekContaining(date: Date): Date[] {
@@ -99,7 +102,7 @@ export default function Nutrition() {
 
   function shiftDay(delta: number) {
     const d = new Date(selectedDate);
-    d.setDate(d.getDate() + delta);
+    d.setDate(d.getDate() + delta * 7);
     setSelectedDate(toDateStr(d));
   }
 
@@ -108,9 +111,11 @@ export default function Nutrition() {
     setSelectedDate(toDateStr(d));
   }
 
-  const displayDate = selDate.toLocaleDateString('en-GB', {
-    weekday: 'short', day: 'numeric', month: 'short',
-  });
+  const weekLabel = (() => {
+    const s = weekDays[0].toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const e = weekDays[6].toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${s} – ${e}`;
+  })();
 
   const monthLabel = monthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
@@ -133,14 +138,17 @@ export default function Nutrition() {
               </button>
             ))}
           </div>
-          {!isToday && (
-            <button
-              onClick={() => setSelectedDate(TODAY)}
-              className="text-xs font-medium text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors"
-            >
-              Today
-            </button>
-          )}
+          <button
+            onClick={() => setSelectedDate(TODAY)}
+            disabled={isToday}
+            className={`text-xs font-medium px-2 py-1 rounded-lg transition-colors ${
+              isToday
+                ? 'text-gray-300 cursor-default'
+                : 'text-brand-600 hover:text-brand-700 hover:bg-brand-50'
+            }`}
+          >
+            Today
+          </button>
         </div>
       </div>
 
@@ -149,7 +157,7 @@ export default function Nutrition() {
         <>
           <div className="flex items-center justify-between text-sm text-gray-600">
             <button onClick={() => shiftDay(-1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">‹</button>
-            <span className="font-medium text-gray-700">{isToday ? 'Today' : displayDate}</span>
+            <span className="font-medium text-gray-700">{weekLabel}</span>
             <button onClick={() => shiftDay(1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">›</button>
           </div>
 
