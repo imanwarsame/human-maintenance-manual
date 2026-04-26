@@ -8,3 +8,10 @@ export function useMealsForDate(date: string) {
     queryFn: () => api.get<MealPlan[]>(`/api/meals?date=${date}`),
   });
 }
+
+export function useMealsForDateRange(from: string, to: string) {
+  return useQuery({
+    queryKey: ['meals', from, to],
+    queryFn: () => api.get<MealPlan[]>(`/api/meals?from=${from}&to=${to}`),
+  });
+}

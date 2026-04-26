@@ -17,8 +17,9 @@ interface Props {
 
 export default function MealPlanCard({ meal, readOnly = false }: Props) {
   const [showDeviation, setShowDeviation] = useState(false);
+  const [localEaten, setLocalEaten] = useState(false);
   const { mutate: markEaten, isPending } = useMarkMealEaten();
-  const isEaten = meal.completion !== null;
+  const isEaten = meal.completion !== null || localEaten;
 
   return (
     <>
@@ -29,7 +30,12 @@ export default function MealPlanCard({ meal, readOnly = false }: Props) {
       >
         <div className="flex items-start gap-3">
           <button
-            onClick={() => !isEaten && !readOnly && markEaten(meal.id)}
+            onClick={() => {
+              if (!isEaten && !readOnly) {
+                setLocalEaten(true);
+                markEaten(meal.id);
+              }
+            }}
             disabled={isPending || isEaten || readOnly}
             className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
               isEaten

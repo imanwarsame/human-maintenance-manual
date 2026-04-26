@@ -28,7 +28,10 @@ export function useMarkMealEaten() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (mealId: string) => api.post(`/api/meals/${mealId}/complete`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['today'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['today'] });
+      qc.invalidateQueries({ queryKey: ['meals'] });
+    },
   });
 }
 

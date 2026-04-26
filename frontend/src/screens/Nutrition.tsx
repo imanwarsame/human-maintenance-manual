@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useMealsForDate } from '../hooks/useMealsForDate.ts';
+import { useMealsForDate, useMealsForDateRange } from '../hooks/useMealsForDate.ts';
 import { useActivitiesForDateRange } from '../hooks/useActivitiesForDateRange.ts';
 import { usePlanContext } from '../hooks/usePlanContext.ts';
 import MealPlanCard from '../components/MealPlanCard.tsx';
-import type { MealType } from '../types/index.ts';
+import type { MealPlan, MealType } from '../types/index.ts';
 
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -11,11 +11,10 @@ function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function getWeekDays(date: Date): Date[] {
+function getWeekContaining(date: Date): Date[] {
   const d = new Date(date);
-  const day = d.getDay();
   const mon = new Date(d);
-  mon.setDate(d.getDate() - ((day + 6) % 7));
+  mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return Array.from({ length: 7 }, (_, i) => {
     const x = new Date(mon);
     x.setDate(mon.getDate() + i);
@@ -23,27 +22,76 @@ function getWeekDays(date: Date): Date[] {
   });
 }
 
+function getMonthDays(year: number, month: number): (Date | null)[] {
+  const first = new Date(year, month, 1);
+  const startOffset = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (Date | null)[] = Array(startOffset).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function dayKcalEaten(meals: MealPlan[], date: string): number {
+  return meals
+    .filter((m) => m.date === date && m.completion !== null)
+    .reduce((s, m) => s + (m.kcal ?? 0), 0);
+}
+
+function dayCalorieColor(
+  meals: MealPlan[],
+  date: string,
+  target: number | null,
+  isSelected: boolean
+): string {
+  if (!target || date > TODAY || isSelected) return '';
+  const eaten = dayKcalEaten(meals, date);
+  if (eaten === 0) return '';
+  const pct = eaten / target;
+  if (pct >= 0.8 && pct <= 1.1) return 'ring-2 ring-green-400';
+  if (pct < 0.8) return 'ring-2 ring-amber-400';
+  return 'ring-2 ring-red-400';
+}
+
 const TODAY = toDateStr(new Date());
 
 export default function Nutrition() {
   const [selectedDate, setSelectedDate] = useState(TODAY);
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
 
-  const weekDays = getWeekDays(new Date(selectedDate));
+  const selDate = new Date(selectedDate);
+  const weekDays = getWeekContaining(selDate);
+  const weekStart = toDateStr(weekDays[0]);
+  const weekEnd = toDateStr(weekDays[6]);
 
-  const { data: meals, isLoading } = useMealsForDate(selectedDate);
-  const { data: activitiesData } = useActivitiesForDateRange(selectedDate, selectedDate);
+  const monthDate = new Date(selDate.getFullYear(), selDate.getMonth(), 1);
+  const monthStart = toDateStr(monthDate);
+  const monthEnd = toDateStr(new Date(selDate.getFullYear(), selDate.getMonth() + 1, 0));
+  const monthDays = getMonthDays(selDate.getFullYear(), selDate.getMonth());
+
+  const rangeStart = viewMode === 'week' ? weekStart : monthStart;
+  const rangeEnd = viewMode === 'week' ? weekEnd : monthEnd;
+
+  // Meals for the selected day (detail view)
+  const { data: dayMeals, isLoading } = useMealsForDate(selectedDate);
+  // Meals for the full range (calorie colouring)
+  const { data: rangeMeals = [] } = useMealsForDateRange(rangeStart, rangeEnd);
+  // Activities for the selected day (determines training vs rest target)
+  const { data: dayActivities = [] } = useActivitiesForDateRange(selectedDate, selectedDate);
   const { data: calorieCtx } = usePlanContext<{ training: number; rest: number }>('calorie_targets');
 
-  const sorted = [...(meals ?? [])].sort(
+  const sorted = [...(dayMeals ?? [])].sort(
     (a, b) => MEAL_ORDER.indexOf(a.meal_type) - MEAL_ORDER.indexOf(b.meal_type)
   );
-  const eaten = (meals ?? []).filter((m) => m.completion !== null).length;
+  const eaten = (dayMeals ?? []).filter((m) => m.completion !== null).length;
+  const totalKcal = (dayMeals ?? [])
+    .filter((m) => m.completion !== null)
+    .reduce((s, m) => s + (m.kcal ?? 0), 0);
 
-  const hasActivity = (activitiesData ?? []).length > 0;
-  const calorieTarget = calorieCtx?.value
-    ? hasActivity
-      ? calorieCtx.value.training
-      : calorieCtx.value.rest
+  const hasActivity = dayActivities.length > 0;
+  const targets = calorieCtx?.value ?? null;
+  const calorieTarget = targets
+    ? hasActivity ? targets.training : targets.rest
     : null;
 
   const isToday = selectedDate === TODAY;
@@ -55,82 +103,151 @@ export default function Nutrition() {
     setSelectedDate(toDateStr(d));
   }
 
-  const displayDate = new Date(selectedDate).toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
+  function shiftMonth(delta: number) {
+    const d = new Date(selDate.getFullYear(), selDate.getMonth() + delta, 1);
+    setSelectedDate(toDateStr(d));
+  }
+
+  const displayDate = selDate.toLocaleDateString('en-GB', {
+    weekday: 'short', day: 'numeric', month: 'short',
   });
+
+  const monthLabel = monthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-4">
-      {/* Header + day navigation */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Nutrition</h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => shiftDay(-1)}
-            className="p-1 rounded-lg hover:bg-gray-100 text-gray-500"
-            aria-label="Previous day"
-          >
-            ‹
-          </button>
-          <button
-            onClick={() => setSelectedDate(TODAY)}
-            className={`text-sm px-2 py-0.5 rounded-lg transition-colors ${
-              isToday ? 'font-semibold text-brand-600' : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            {isToday ? 'Today' : displayDate}
-          </button>
-          <button
-            onClick={() => shiftDay(1)}
-            className="p-1 rounded-lg hover:bg-gray-100 text-gray-500"
-            aria-label="Next day"
-          >
-            ›
-          </button>
+          <div className="flex bg-gray-100 rounded-lg p-0.5 text-xs">
+            {(['week', 'month'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setViewMode(v)}
+                className={`px-2.5 py-1 rounded-md transition-colors capitalize ${
+                  viewMode === v ? 'bg-white text-gray-800 shadow-sm font-medium' : 'text-gray-500'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          {!isToday && (
+            <button
+              onClick={() => setSelectedDate(TODAY)}
+              className="text-xs font-medium text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors"
+            >
+              Today
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Week strip */}
-      <div className="grid grid-cols-7 gap-1">
-        {weekDays.map((d) => {
-          const str = toDateStr(d);
-          const isSelected = str === selectedDate;
-          const isT = str === TODAY;
-          return (
-            <button
-              key={str}
-              onClick={() => setSelectedDate(str)}
-              className={`flex flex-col items-center py-1.5 rounded-xl text-xs transition-colors ${
-                isSelected
-                  ? 'bg-brand-600 text-white'
-                  : isT
-                  ? 'bg-brand-50 text-brand-600 font-semibold'
-                  : 'text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              <span className="font-medium">
-                {d.toLocaleDateString('en-GB', { weekday: 'narrow' })}
-              </span>
-              <span>{d.getDate()}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Week view — nav + strip */}
+      {viewMode === 'week' && (
+        <>
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <button onClick={() => shiftDay(-1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">‹</button>
+            <span className="font-medium text-gray-700">{isToday ? 'Today' : displayDate}</span>
+            <button onClick={() => shiftDay(1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">›</button>
+          </div>
 
-      {/* Summary row */}
-      <div className="flex items-center justify-between text-sm text-gray-500">
-        {calorieTarget != null ? (
-          <span>
-            Target: <span className="font-semibold text-gray-700">{calorieTarget.toLocaleString()} kcal</span>
-            {hasActivity && <span className="ml-1 text-xs text-brand-500">(training)</span>}
-          </span>
-        ) : (
-          <span />
-        )}
-        {(meals ?? []).length > 0 && (
-          <span>{eaten}/{(meals ?? []).length} meals eaten</span>
+          <div className="grid grid-cols-7 gap-1">
+            {weekDays.map((d) => {
+              const str = toDateStr(d);
+              const isSelected = str === selectedDate;
+              const isT = str === TODAY;
+              const colorRing = dayCalorieColor(rangeMeals, str, calorieTarget, isSelected);
+              return (
+                <button
+                  key={str}
+                  onClick={() => setSelectedDate(str)}
+                  className={`flex flex-col items-center py-1.5 rounded-xl text-xs transition-colors ${colorRing} ${
+                    isSelected
+                      ? 'bg-brand-600 text-white'
+                      : isT
+                      ? 'bg-brand-50 text-brand-600 font-semibold'
+                      : 'text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="font-medium">{d.toLocaleDateString('en-GB', { weekday: 'narrow' })}</span>
+                  <span>{d.getDate()}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Month view */}
+      {viewMode === 'month' && (
+        <>
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <button onClick={() => shiftMonth(-1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">‹</button>
+            <span className="font-medium">{monthLabel}</span>
+            <button onClick={() => shiftMonth(1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">›</button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-px">
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+              <p key={i} className="text-center text-xs text-gray-400 py-1 font-medium">{d}</p>
+            ))}
+            {monthDays.map((d, i) => {
+              if (!d) return <div key={i} />;
+              const str = toDateStr(d);
+              const isSelected = str === selectedDate;
+              const isT = str === TODAY;
+              const colorRing = dayCalorieColor(rangeMeals, str, calorieTarget, isSelected);
+              return (
+                <button
+                  key={str}
+                  onClick={() => setSelectedDate(str)}
+                  className={`flex flex-col items-center py-1 rounded-lg text-xs transition-colors ${colorRing} ${
+                    isSelected
+                      ? 'bg-brand-600 text-white'
+                      : isT
+                      ? 'bg-brand-50 text-brand-600 font-semibold'
+                      : 'text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <span>{d.getDate()}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Calorie progress + meals eaten */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm">
+          {calorieTarget != null ? (
+            <div className="space-y-0.5">
+              <div className="flex items-baseline gap-1">
+                <span className="font-semibold text-gray-800">{totalKcal.toLocaleString()}</span>
+                <span className="text-gray-400">/ {calorieTarget.toLocaleString()} kcal</span>
+                {hasActivity && <span className="text-xs text-brand-500 ml-1">training day</span>}
+              </div>
+              <div className="w-40 bg-gray-100 rounded-full h-1.5">
+                <div
+                  className={`h-1.5 rounded-full transition-all ${
+                    totalKcal / calorieTarget > 1.1
+                      ? 'bg-red-400'
+                      : totalKcal / calorieTarget >= 0.8
+                      ? 'bg-green-400'
+                      : 'bg-amber-400'
+                  }`}
+                  style={{ width: `${Math.min(100, (totalKcal / calorieTarget) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <span className="text-xs text-gray-400">No calorie target set</span>
+          )}
+        </div>
+        {(dayMeals ?? []).length > 0 && (
+          <span className="text-sm text-gray-500">{eaten}/{(dayMeals ?? []).length} meals eaten</span>
         )}
       </div>
 
