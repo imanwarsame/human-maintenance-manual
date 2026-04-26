@@ -99,6 +99,11 @@ export default function Nutrition() {
 
   const isToday = selectedDate === TODAY;
   const isFuture = selectedDate > TODAY;
+  const isOnToday =
+    viewMode === 'week'
+      ? weekDays.some((d) => toDateStr(d) === TODAY)
+      : selDate.getFullYear() === new Date().getFullYear() &&
+        selDate.getMonth() === new Date().getMonth();
 
   function shiftDay(delta: number) {
     const d = new Date(selectedDate);
@@ -138,17 +143,14 @@ export default function Nutrition() {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setSelectedDate(TODAY)}
-            disabled={isToday}
-            className={`text-xs font-medium px-2 py-1 rounded-lg transition-colors ${
-              isToday
-                ? 'text-gray-300 cursor-default'
-                : 'text-brand-600 hover:text-brand-700 hover:bg-brand-50'
-            }`}
-          >
-            Today
-          </button>
+          {!isOnToday && (
+            <button
+              onClick={() => setSelectedDate(TODAY)}
+              className="text-xs font-medium px-2 py-1 rounded-lg text-brand-600 hover:text-brand-700 hover:bg-brand-50 transition-colors"
+            >
+              Today
+            </button>
+          )}
         </div>
       </div>
 
