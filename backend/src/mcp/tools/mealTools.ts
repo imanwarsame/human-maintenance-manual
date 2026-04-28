@@ -4,7 +4,8 @@ import {
   writeMealPlan,
   updateMealPlan,
   markMealEaten,
-  logMealDeviation,
+  deleteMealPlan,
+  deleteMealsForDate,
 } from '../../db/queries/meals.js';
 
 const MealInputSchema = z.object({
@@ -23,7 +24,7 @@ const MealInputSchema = z.object({
 export function registerMealTools(server: McpServer): void {
   server.tool(
     'write_meal_plan',
-    'Write one or more planned meals to the database for a given date or week. This is the primary tool for Claude to set up meal plans.',
+    'Write one or more planned meals to the database for a given date or week. NOTE: this tool is ADDITIVE — it appends to any existing meals for that date. Use replace_day_meals instead when you want to rewrite a full day\'s plan.',
     { meals: z.array(MealInputSchema).min(1).describe('Array of meal plan entries to create') },
     async ({ meals }) => {
       const created = await writeMealPlan(meals.map((m) => ({ ...m, created_by: m.created_by ?? 'claude' })));
@@ -58,19 +59,29 @@ export function registerMealTools(server: McpServer): void {
   );
 
   server.tool(
-    'log_meal_deviation',
-    'Log a deviation from the meal plan (skipped, swapped, ate out, or extras).',
-    {
-      meal_plan_id: z.string().optional().describe('UUID of the related meal plan entry (optional)'),
-      date: z.string().describe('Date of the deviation in YYYY-MM-DD format'),
-      description: z.string().describe('Free-text description of the deviation'),
-      kcal: z.number().int().positive().optional(),
-      protein_g: z.number().positive().optional(),
-      deviation_type: z.enum(['skipped', 'swapped', 'ate_out', 'extras']),
-    },
-    async (args) => {
-      const deviation = await logMealDeviation(args);
-      return { content: [{ type: 'text', text: JSON.stringify(deviation) }] };
+    'delete_meal',
+    'Delete a single meal from the plan by its UUID.',
+    { id: z.string().uuid().describe('Meal plan UUID to delete') },
+    async ({ id }) => {
+      await deleteMealPlan(id);
+      return { content: [{ type: 'text', text: JSON.stringify({ deleted: id }) }] };
     }
   );
+
+  server.tool(
+    'replace_day_meals',
+    'Replace all meals for a given date with a new set. Deletes existing meals for that date then writes the new ones — use this instead of write_meal_plan when correcting or rewriting a full day\'s plan.',
+    {
+      date: z.string().describe('Date to replace meals for (YYYY-MM-DD)'),
+      meals: z.array(MealInputSchema.omit({ date: true })).min(1).describe('New meals for the day'),
+    },
+    async ({ date, meals }) => {
+      await deleteMealsForDate(date);
+      const created = await writeMealPlan(
+        meals.map((m) => ({ ...m, date, created_by: m.created_by ?? 'claude' }))
+      );
+      return { content: [{ type: 'text', text: JSON.stringify(created) }] };
+    }
+  );
+
 }

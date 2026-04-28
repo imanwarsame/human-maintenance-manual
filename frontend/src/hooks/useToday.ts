@@ -19,9 +19,11 @@ export function useCoachingNote() {
 export function useLogWater() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (amount_ml: number) => api.post('/api/hydration', { amount_ml }),
-    onSuccess: () => {
+    mutationFn: ({ amount_ml, date }: { amount_ml: number; date: string }) =>
+      api.post('/api/hydration', { amount_ml, date }),
+    onSuccess: (_data, { date }) => {
       qc.invalidateQueries({ queryKey: ['today'] });
+      qc.invalidateQueries({ queryKey: ['hydration', date] });
       qc.invalidateQueries({ queryKey: ['hydration'] });
     },
   });
@@ -38,21 +40,3 @@ export function useMarkMealEaten() {
   });
 }
 
-export function useLogDeviation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      mealId,
-      body,
-    }: {
-      mealId: string;
-      body: {
-        description: string;
-        deviation_type: string;
-        kcal?: number;
-        protein_g?: number;
-      };
-    }) => api.post(`/api/meals/${mealId}/deviation`, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['today'] }),
-  });
-}

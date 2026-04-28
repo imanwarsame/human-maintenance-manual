@@ -3,12 +3,17 @@ import { useLogWater } from "../hooks/useToday.ts";
 
 const QUICK_AMOUNTS = [150, 250, 300, 500, 750];
 
+function localDateStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function HydrationLogger() {
   const [custom, setCustom] = useState("");
   const { mutate, isPending } = useLogWater();
 
   function log(ml: number) {
-    if (ml > 0) mutate(ml);
+    if (ml > 0) mutate({ amount_ml: ml, date: localDateStr() });
     setCustom("");
   }
 

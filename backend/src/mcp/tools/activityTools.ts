@@ -7,7 +7,10 @@ import {
   deleteActivity,
   deleteActivitiesForDate,
   deleteActivitiesForDateRange,
+  updateActivity,
 } from '../../db/queries/activities.js';
+import { syncRecentStravaActivities } from '../../strava/sync.js';
+import { getExerciseWeights } from '../../db/queries/exerciseWeights.js';
 
 const ExerciseSchema = z.object({
   name: z.string().describe('Exercise name'),
@@ -105,6 +108,78 @@ export function registerActivityTools(server: McpServer): void {
         return { content: [{ type: 'text', text: JSON.stringify({ cleared_from: from, cleared_to: to, deleted_count: count }) }] };
       }
       return { content: [{ type: 'text', text: JSON.stringify({ error: 'Provide either date or both from and to.' }) }] };
+    }
+  );
+
+  server.tool(
+    'update_activity',
+    'Update fields on an existing activity session — e.g. correct notes, duration, or exercise weights. Pass only the fields you want to change.',
+    {
+      id: z.string().uuid().describe('Activity UUID to update'),
+      type: z.string().optional().describe('Activity type'),
+      duration_mins: z.number().int().positive().optional(),
+      distance_km: z.number().positive().optional(),
+      avg_hr: z.number().int().positive().optional(),
+      notes: z.string().optional(),
+      exercises: z.array(ExerciseSchema).optional().describe('Full updated exercise list (replaces existing)'),
+      run_plan: RunPlanSchema.optional().describe('Full updated run plan (replaces existing)'),
+    },
+    async ({ id, exercises, run_plan, ...rest }) => {
+      const raw_json = (exercises !== undefined || run_plan !== undefined)
+        ? { exercises, run_plan }
+        : undefined;
+      const activity = await updateActivity(id, {
+        ...rest,
+        ...(raw_json !== undefined ? { raw_json } : {}),
+      });
+      return { content: [{ type: 'text', text: JSON.stringify(activity) }] };
+    }
+  );
+
+  server.tool(
+    'replace_day_activities',
+    'Replace all activities for a given date. Clears existing activities then logs new ones — use this when correcting or rewriting a full day\'s plan.',
+    {
+      date: z.string().describe('Date to replace activities for (YYYY-MM-DD)'),
+      activities: z.array(z.object({
+        type: z.string().describe('Activity type (e.g. strength, run, football, cycling)'),
+        duration_mins: z.number().int().positive().optional(),
+        distance_km: z.number().positive().optional(),
+        notes: z.string().optional(),
+        exercises: z.array(ExerciseSchema).optional(),
+        run_plan: RunPlanSchema.optional(),
+        is_planned: z.boolean().optional().describe('True for future planned sessions'),
+      })).min(1),
+    },
+    async ({ date, activities }) => {
+      await deleteActivitiesForDate(date);
+      const created = await Promise.all(
+        activities.map(({ type, duration_mins, distance_km, notes, exercises, run_plan, is_planned }) => {
+          const raw_json = (exercises || run_plan) ? { exercises, run_plan } : undefined;
+          return logActivity({ date, type, source: 'manual', duration_mins, distance_km, notes, raw_json, is_planned: is_planned ?? false });
+        })
+      );
+      return { content: [{ type: 'text', text: JSON.stringify(created) }] };
+    }
+  );
+
+  server.tool(
+    'get_exercise_weights',
+    'Return the current working weight for each tracked exercise. Use this when planning a gym session to apply progressive overload.',
+    {},
+    async () => {
+      const weights = await getExerciseWeights();
+      return { content: [{ type: 'text', text: JSON.stringify(weights) }] };
+    }
+  );
+
+  server.tool(
+    'sync_strava',
+    'Pull recent Strava activities into the app immediately. Call this when the user says activities are missing.',
+    { days: z.number().int().positive().optional().describe('Days back to sync (default 2)') },
+    async ({ days }) => {
+      const count = await syncRecentStravaActivities(days ?? 2);
+      return { content: [{ type: 'text', text: JSON.stringify({ synced: count }) }] };
     }
   );
 

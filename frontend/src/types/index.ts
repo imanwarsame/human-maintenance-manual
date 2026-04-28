@@ -1,6 +1,5 @@
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type ActivitySource = 'strava' | 'garmin' | 'manual';
-export type DeviationType = 'skipped' | 'swapped' | 'ate_out' | 'extras';
 export type NoteType = 'daily' | 'weekly';
 
 export interface HydrationLog {
@@ -21,17 +20,6 @@ export interface MealCompletion {
   eaten_at: string;
 }
 
-export interface MealDeviation {
-  id: string;
-  meal_plan_id: string | null;
-  date: string;
-  description: string;
-  kcal: number | null;
-  protein_g: number | null;
-  deviation_type: DeviationType;
-  logged_at: string;
-}
-
 export interface MealPlan {
   id: string;
   date: string;
@@ -46,7 +34,6 @@ export interface MealPlan {
   created_by: 'claude' | 'manual';
   created_at: string;
   completion: MealCompletion | null;
-  deviations: MealDeviation[];
 }
 
 export interface Exercise {
@@ -102,7 +89,6 @@ export interface WeekSummary {
   to: string;
   hydrationLogs: HydrationLog[];
   meals: MealPlan[];
-  deviations: MealDeviation[];
   activities: Activity[];
   coachingNotes: CoachingNote[];
 }

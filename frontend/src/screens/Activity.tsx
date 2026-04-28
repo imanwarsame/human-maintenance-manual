@@ -81,6 +81,7 @@ function DayDetail({ date, activities }: { date: string; activities: Activity[] 
           return (
             <WorkoutPlanCard
               key={a.id}
+              activityId={a.id}
               type={a.type}
               notes={a.notes}
               duration_mins={a.duration_mins}

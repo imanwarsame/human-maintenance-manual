@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getHydrationForDateRange } from '../db/queries/hydration.js';
-import { getMealPlansForDateRange, getDeviationsForDateRange } from '../db/queries/meals.js';
+import { getMealPlansForDateRange } from '../db/queries/meals.js';
 import { getActivitiesForDateRange } from '../db/queries/activities.js';
 import { getCoachingNotesForDateRange } from '../db/queries/coaching.js';
 
@@ -19,14 +19,13 @@ function dateRange(): { from: string; to: string } {
 router.get('/', async (_req, res, next) => {
   try {
     const { from, to } = dateRange();
-    const [hydrationLogs, meals, deviations, activities, coachingNotes] = await Promise.all([
+    const [hydrationLogs, meals, activities, coachingNotes] = await Promise.all([
       getHydrationForDateRange(from, to),
       getMealPlansForDateRange(from, to),
-      getDeviationsForDateRange(from, to),
       getActivitiesForDateRange(from, to),
       getCoachingNotesForDateRange(from, to),
     ]);
-    res.json({ from, to, hydrationLogs, meals, deviations, activities, coachingNotes });
+    res.json({ from, to, hydrationLogs, meals, activities, coachingNotes });
   } catch (err) {
     next(err);
   }

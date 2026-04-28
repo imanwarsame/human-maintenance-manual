@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getHydrationForDate, getHydrationForDateRange } from '../../db/queries/hydration.js';
-import { getMealPlansForDate, getMealPlansForDateRange, getDeviationsForDateRange } from '../../db/queries/meals.js';
+import { getMealPlansForDate, getMealPlansForDateRange } from '../../db/queries/meals.js';
 import { getActivitiesForDate, getActivitiesForDateRange } from '../../db/queries/activities.js';
 import { getCoachingNoteForDate, getCoachingNotesForDateRange } from '../../db/queries/coaching.js';
 
@@ -47,15 +47,14 @@ export function registerSummaryTools(server: McpServer): void {
 
   server.tool(
     'get_week',
-    'Return the last 7 days: hydration logs, meal plan adherence, deviations, activities, and coaching notes.',
+    'Return the last 7 days: hydration logs, meal plan adherence, activities, and coaching notes.',
     {},
     async () => {
       const from = nDaysAgo(6);
       const to = today();
-      const [hydrationLogs, meals, deviations, activities, coachingNotes] = await Promise.all([
+      const [hydrationLogs, meals, activities, coachingNotes] = await Promise.all([
         getHydrationForDateRange(from, to),
         getMealPlansForDateRange(from, to),
-        getDeviationsForDateRange(from, to),
         getActivitiesForDateRange(from, to),
         getCoachingNotesForDateRange(from, to),
       ]);
@@ -63,7 +62,7 @@ export function registerSummaryTools(server: McpServer): void {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ from, to, hydrationLogs, meals, deviations, activities, coachingNotes }),
+            text: JSON.stringify({ from, to, hydrationLogs, meals, activities, coachingNotes }),
           },
         ],
       };
@@ -72,28 +71,25 @@ export function registerSummaryTools(server: McpServer): void {
 
   server.tool(
     'get_month',
-    'Return the last 30 days rolled up by week: hydration totals, meal adherence rate, deviation count, and activity count per week.',
+    'Return the last 30 days rolled up by week: hydration totals, meal adherence rate, and activity count per week.',
     {},
     async () => {
       const from = nDaysAgo(29);
       const to = today();
-      const [hydrationLogs, meals, deviations, activities] = await Promise.all([
+      const [hydrationLogs, meals, activities] = await Promise.all([
         getHydrationForDateRange(from, to),
         getMealPlansForDateRange(from, to),
-        getDeviationsForDateRange(from, to),
         getActivitiesForDateRange(from, to),
       ]);
 
       const hydByWeek = groupByWeek(hydrationLogs);
       const mealsByWeek = groupByWeek(meals);
-      const devByWeek = groupByWeek(deviations);
       const actByWeek = groupByWeek(activities);
 
       const allWeeks = Array.from(
         new Set([
           ...Object.keys(hydByWeek),
           ...Object.keys(mealsByWeek),
-          ...Object.keys(devByWeek),
           ...Object.keys(actByWeek),
         ])
       ).sort();
@@ -107,7 +103,6 @@ export function registerSummaryTools(server: McpServer): void {
           meals_planned: weekMeals.length,
           meals_eaten: eaten,
           adherence_pct: weekMeals.length > 0 ? Math.round((eaten / weekMeals.length) * 100) : null,
-          deviation_count: (devByWeek[week] ?? []).length,
           activity_count: (actByWeek[week] ?? []).length,
         };
       });

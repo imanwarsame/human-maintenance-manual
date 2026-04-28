@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { getActivities, getActivitiesForDateRange, logActivity } from '../db/queries/activities.js';
+import { getActivities, getActivitiesForDateRange, logActivity, updateActivity } from '../db/queries/activities.js';
 
 const router = Router();
 
@@ -38,6 +38,35 @@ router.post('/', async (req, res, next) => {
     }
     const activity = await logActivity({ ...parsed.data, source: 'manual' });
     res.status(201).json(activity);
+  } catch (err) {
+    next(err);
+  }
+});
+
+const ExerciseSchema = z.object({
+  name: z.string(),
+  sets: z.number().int().positive(),
+  reps: z.number().int().positive(),
+  weight_kg: z.number().positive().optional(),
+});
+
+const PatchActivitySchema = z.object({
+  exercises: z.array(ExerciseSchema).optional(),
+});
+
+router.patch('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const parsed = PatchActivitySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+    const { exercises } = parsed.data;
+    const activity = await updateActivity(id, {
+      raw_json: exercises !== undefined ? { exercises } : undefined,
+    });
+    res.json(activity);
   } catch (err) {
     next(err);
   }

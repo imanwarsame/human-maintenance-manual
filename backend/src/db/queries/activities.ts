@@ -131,3 +131,17 @@ export async function deleteActivitiesForDateRange(from: string, to: string): Pr
   if (error) throw error;
   return data?.length ?? 0;
 }
+
+export async function updateActivity(
+  id: string,
+  updates: Partial<Omit<CreateActivityInput, 'source' | 'external_id'>>
+): Promise<Activity> {
+  const { data, error } = await supabase
+    .from('activities')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}

@@ -7,6 +7,7 @@ import mealsRouter from './meals.js';
 import activitiesRouter from './activities.js';
 import coachingRouter from './coaching.js';
 import planContextRouter from './planContext.js';
+import exerciseWeightsRouter from './exerciseWeights.js';
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use('/meals', mealsRouter);
 router.use('/activities', activitiesRouter);
 router.use('/coaching-note', coachingRouter);
 router.use('/plan-context', planContextRouter);
+router.use('/exercise-weights', exerciseWeightsRouter);
 
 export default router;
