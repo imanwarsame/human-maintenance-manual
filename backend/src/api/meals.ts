@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { markMealEaten, getMealPlansForDate, getMealPlansForDateRange } from '../db/queries/meals.js';
+import { markMealEaten, getMealPlansForDate, getMealPlansForDateRange, deleteMealPlan } from '../db/queries/meals.js';
 
 const router = Router();
 
@@ -25,6 +25,15 @@ router.post('/:id/complete', async (req, res, next) => {
     const eaten_at = (req.body?.eaten_at as string | undefined) ?? new Date().toISOString();
     const completion = await markMealEaten(id, eaten_at);
     res.status(201).json(completion);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id', async (req, res, next) => {
+  try {
+    await deleteMealPlan(req.params.id);
+    res.json({ deleted: req.params.id });
   } catch (err) {
     next(err);
   }

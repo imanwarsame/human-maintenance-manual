@@ -21,10 +21,12 @@ export function useLogWater() {
   return useMutation({
     mutationFn: ({ amount_ml, date }: { amount_ml: number; date: string }) =>
       api.post('/api/hydration', { amount_ml, date }),
-    onSuccess: (_data, { date }) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['today'] });
-      qc.invalidateQueries({ queryKey: ['hydration', date] });
-      qc.invalidateQueries({ queryKey: ['hydration'] });
+      qc.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey[0] === 'hydration',
+      });
     },
   });
 }

@@ -12,10 +12,12 @@ const MEAL_LABELS: Record<string, string> = {
 interface Props {
   meal: MealPlan;
   readOnly?: boolean;
+  onDelete?: (id: string) => void;
 }
 
-export default function MealPlanCard({ meal, readOnly = false }: Props) {
+export default function MealPlanCard({ meal, readOnly = false, onDelete }: Props) {
   const [localEaten, setLocalEaten] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { mutate: markEaten, isPending } = useMarkMealEaten();
   const isEaten = meal.completion !== null || localEaten;
 
@@ -50,7 +52,29 @@ export default function MealPlanCard({ meal, readOnly = false }: Props) {
             <p className={`text-sm font-semibold ${isEaten ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
               {meal.meal_name}
             </p>
-            <span className="text-xs text-gray-400 shrink-0">{MEAL_LABELS[meal.meal_type]}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-gray-400">{MEAL_LABELS[meal.meal_type]}</span>
+              {onDelete && (
+                confirmDelete ? (
+                  <button
+                    onClick={() => onDelete(meal.id)}
+                    onBlur={() => setConfirmDelete(false)}
+                    className="text-xs text-red-500 font-medium px-1.5 py-0.5 rounded border border-red-200 hover:bg-red-50 transition-colors"
+                    autoFocus
+                  >
+                    Confirm?
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="text-gray-300 hover:text-red-400 transition-colors text-sm leading-none"
+                    aria-label="Delete meal"
+                  >
+                    ✕
+                  </button>
+                )
+              )}
+            </div>
           </div>
           {meal.description && (
             <p className="text-xs text-gray-500 mt-0.5">{meal.description}</p>

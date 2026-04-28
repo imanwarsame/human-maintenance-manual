@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMealsForDate, useMealsForDateRange } from '../hooks/useMealsForDate.ts';
+import { useMealsForDate, useMealsForDateRange, useDeleteMeal } from '../hooks/useMealsForDate.ts';
 import { useActivitiesForDateRange } from '../hooks/useActivitiesForDateRange.ts';
 import { usePlanContext } from '../hooks/usePlanContext.ts';
 import MealPlanCard from '../components/MealPlanCard.tsx';
@@ -77,6 +77,7 @@ export default function Nutrition() {
 
   // Meals for the selected day (detail view)
   const { data: dayMeals, isLoading } = useMealsForDate(selectedDate);
+  const { mutate: deleteMeal } = useDeleteMeal();
   // Meals for the full range (calorie colouring)
   const { data: rangeMeals = [] } = useMealsForDateRange(rangeStart, rangeEnd);
   // Activities for the selected day (determines training vs rest target)
@@ -276,7 +277,7 @@ export default function Nutrition() {
       ) : (
         <div className="space-y-3">
           {sorted.map((meal) => (
-            <MealPlanCard key={meal.id} meal={meal} readOnly={!isToday} />
+            <MealPlanCard key={meal.id} meal={meal} readOnly={!isToday} onDelete={deleteMeal} />
           ))}
         </div>
       )}
