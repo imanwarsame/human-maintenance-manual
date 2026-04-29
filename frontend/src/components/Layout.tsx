@@ -13,7 +13,10 @@ export default function Layout() {
     <div className="flex flex-col min-h-screen max-w-2xl mx-auto">
       {/* Desktop header */}
       <header className="hidden sm:flex items-center gap-6 px-6 py-4 border-b border-gray-200 bg-white sticky top-0 z-10">
-        <span className="font-semibold text-gray-900 mr-auto">Human Maintenance Manual</span>
+        <span className="flex items-center gap-2 font-semibold text-gray-900 mr-auto">
+          <img src="/icons/logo.svg" alt="" className="w-6 h-6" />
+          Human Maintenance Manual
+        </span>
         {tabs.map((tab) => (
           <NavLink
             key={tab.to}

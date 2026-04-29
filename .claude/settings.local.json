@@ -16,7 +16,9 @@
       "mcp__f93a00c8-542a-4894-a732-ec38153e1d2e__list_projects",
       "Bash(npx web-push *)",
       "Bash(node -)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(npm list *)",
+      "Bash(node gen-icons.js)"
     ]
   }
 }
