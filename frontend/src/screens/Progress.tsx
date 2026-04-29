@@ -105,9 +105,9 @@ function LineChart({
 
   // X-axis: first, middle, last
   const xLabels = [
-    { i: 0, anchor: 'start' },
-    { i: Math.floor((data.length - 1) / 2), anchor: 'middle' },
-    { i: data.length - 1, anchor: 'end' },
+    { i: 0, anchor: 'start' as const },
+    { i: Math.floor((data.length - 1) / 2), anchor: 'middle' as const },
+    { i: data.length - 1, anchor: 'end' as const },
   ].filter((l, idx, arr) => arr.findIndex((ll) => ll.i === l.i) === idx);
 
   return (
