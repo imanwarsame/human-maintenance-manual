@@ -30,6 +30,17 @@ export default function Layout() {
             {tab.label}
           </NavLink>
         ))}
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `text-lg pb-1 border-b-2 transition-colors ${
+              isActive ? 'border-brand-600' : 'border-transparent text-gray-400 hover:text-gray-700'
+            }`
+          }
+          aria-label="Settings"
+        >
+          ⚙
+        </NavLink>
       </header>
 
       {/* Page content */}

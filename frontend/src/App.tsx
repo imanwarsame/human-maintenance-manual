@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.ts';
+import { useNotificationActionHandler } from './hooks/useNotificationActionHandler.ts';
 import Layout from './components/Layout.tsx';
 import Home from './screens/Home.tsx';
 import Hydration from './screens/Hydration.tsx';
 import Activity from './screens/Activity.tsx';
 import Nutrition from './screens/Nutrition.tsx';
 import Progress from './screens/Progress.tsx';
+import Settings from './screens/Settings.tsx';
 
 function AuthGate() {
   const { session, loading, signIn } = useAuth();
@@ -23,20 +25,7 @@ function AuthGate() {
   }
 
   if (session) {
-    return (
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route index element={<Home />} />
-            <Route path="/hydration" element={<Hydration />} />
-            <Route path="/activity" element={<Activity />} />
-            <Route path="/nutrition" element={<Nutrition />} />
-            <Route path="/progress" element={<Progress />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    );
+    return <AuthenticatedApp />;
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -84,6 +73,25 @@ function AuthGate() {
         )}
       </div>
     </div>
+  );
+}
+
+function AuthenticatedApp() {
+  useNotificationActionHandler();
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="/hydration" element={<Hydration />} />
+          <Route path="/activity" element={<Activity />} />
+          <Route path="/nutrition" element={<Nutrition />} />
+          <Route path="/progress" element={<Progress />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 

@@ -2,16 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Frontend (Vite)",
+      "name": "frontend-preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace=frontend"],
-      "port": 5173
-    },
-    {
-      "name": "Backend (Express + MCP)",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace=backend"],
-      "port": 3000
+      "runtimeArgs": ["run", "preview"],
+      "cwd": "frontend",
+      "port": 4173
     }
   ]
 }

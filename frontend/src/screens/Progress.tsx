@@ -132,7 +132,7 @@ function LineChart({
       ))}
       {/* x-axis labels */}
       {xLabels.map(({ i, anchor }) => (
-        <text key={i} x={toX(i)} y={H - 6} textAnchor={anchor} fontSize="9" fill="#9ca3af">
+        <text key={i} x={toX(i)} y={H - 6} textAnchor={anchor as 'start' | 'middle' | 'end'} fontSize="9" fill="#9ca3af">
           {data[i].x}
         </text>
       ))}
