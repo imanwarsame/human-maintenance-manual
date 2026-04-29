@@ -12,7 +12,8 @@
       "mcp__c5cfe6d6-7b04-4dd3-82be-620c6a65d7ed__get_week",
       "mcp__c5cfe6d6-7b04-4dd3-82be-620c6a65d7ed__get_plan_context",
       "mcp__c5cfe6d6-7b04-4dd3-82be-620c6a65d7ed__write_coaching_note",
-      "mcp__f93a00c8-542a-4894-a732-ec38153e1d2e__apply_migration"
+      "mcp__f93a00c8-542a-4894-a732-ec38153e1d2e__apply_migration",
+      "mcp__f93a00c8-542a-4894-a732-ec38153e1d2e__list_projects"
     ]
   }
 }
