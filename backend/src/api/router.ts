@@ -8,6 +8,8 @@ import activitiesRouter from './activities.js';
 import coachingRouter from './coaching.js';
 import planContextRouter from './planContext.js';
 import exerciseWeightsRouter from './exerciseWeights.js';
+import progressRouter from './progress.js';
+import bodyWeightRouter from './bodyWeight.js';
 
 const router = Router();
 
@@ -21,5 +23,7 @@ router.use('/activities', activitiesRouter);
 router.use('/coaching-note', coachingRouter);
 router.use('/plan-context', planContextRouter);
 router.use('/exercise-weights', exerciseWeightsRouter);
+router.use('/progress', progressRouter);
+router.use('/body-weight', bodyWeightRouter);
 
 export default router;

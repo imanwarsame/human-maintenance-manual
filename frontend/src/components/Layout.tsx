@@ -5,6 +5,7 @@ const tabs = [
   { to: '/hydration', label: 'Hydration', icon: '💧' },
   { to: '/activity', label: 'Activity', icon: '🏃' },
   { to: '/nutrition', label: 'Nutrition', icon: '🥗' },
+  { to: '/progress', label: 'Progress', icon: '📈' },
 ];
 
 export default function Layout() {

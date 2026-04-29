@@ -6,6 +6,7 @@ import Home from './screens/Home.tsx';
 import Hydration from './screens/Hydration.tsx';
 import Activity from './screens/Activity.tsx';
 import Nutrition from './screens/Nutrition.tsx';
+import Progress from './screens/Progress.tsx';
 
 function AuthGate() {
   const { session, loading, signIn } = useAuth();
@@ -30,6 +31,7 @@ function AuthGate() {
             <Route path="/hydration" element={<Hydration />} />
             <Route path="/activity" element={<Activity />} />
             <Route path="/nutrition" element={<Nutrition />} />
+            <Route path="/progress" element={<Progress />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
