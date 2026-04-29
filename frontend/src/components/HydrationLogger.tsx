@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useLogWater } from "../hooks/useToday.ts";
 
-const QUICK_AMOUNTS = [150, 250, 300, 500, 750];
+const QUICK_AMOUNTS = [150, 250, 300, 500, 750, 900];
 
 function localDateStr(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export default function HydrationLogger() {

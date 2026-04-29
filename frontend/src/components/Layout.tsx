@@ -68,6 +68,17 @@ export default function Layout() {
             {tab.label}
           </NavLink>
         ))}
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `flex-1 flex flex-col items-center py-3 text-xs font-medium transition-colors ${
+              isActive ? 'text-brand-600' : 'text-gray-500'
+            }`
+          }
+        >
+          <span className="text-xl leading-none mb-1">⚙</span>
+          Settings
+        </NavLink>
       </nav>
     </div>
   );

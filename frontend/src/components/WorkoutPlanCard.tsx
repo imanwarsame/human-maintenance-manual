@@ -8,6 +8,7 @@ const TYPE_EMOJI: Record<string, string> = {
   football: '⚽',
   cycling: '🚴',
   swim: '🏊',
+  mobility: '🧘',
   other: '🏋️',
 };
 
@@ -17,9 +18,10 @@ interface Props {
   notes: string | null;
   duration_mins: number | null;
   exercises: Exercise[];
+  onComplete?: () => void;
 }
 
-export default function WorkoutPlanCard({ activityId, type, notes, duration_mins, exercises }: Props) {
+export default function WorkoutPlanCard({ activityId, type, notes, duration_mins, exercises, onComplete }: Props) {
   const [ticked, setTicked] = useState<Set<number>>(new Set());
   const [editingWeight, setEditingWeight] = useState<number | null>(null);
   const [weightInput, setWeightInput] = useState('');
@@ -145,6 +147,14 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
             );
           })}
         </div>
+      )}
+      {onComplete && (
+        <button
+          onClick={onComplete}
+          className="w-full py-2 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors"
+        >
+          Mark complete
+        </button>
       )}
     </div>
   );

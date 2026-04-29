@@ -7,7 +7,7 @@ import stravaOauthRouter from './strava/oauth.js';
 import stravaWebhookRouter from './strava/webhook.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { syncRecentStravaActivities } from './strava/sync.js';
-import { startReminderScheduler } from './scheduler/reminders.js';
+import { startReminderScheduler, startMobilityReminderScheduler } from './scheduler/reminders.js';
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3000);
@@ -37,6 +37,7 @@ app.listen(PORT, () => {
   console.log(`MCP server: http://localhost:${PORT}/mcp`);
 
   startReminderScheduler();
+  startMobilityReminderScheduler();
 
   // Poll Strava every 10 minutes to catch activities the webhook might miss
   const STRAVA_POLL_MS = 10 * 60 * 1000;

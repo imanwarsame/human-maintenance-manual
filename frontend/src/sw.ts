@@ -43,7 +43,11 @@ self.addEventListener('notificationclick', (event) => {
   const action = (event as Event & { action?: string }).action ?? '';
   if (action === 'dismiss') return;
 
-  const url = action === 'log-250ml' ? '/?log=250' : '/hydration';
+  const notifData = clickEvent.notification.data as { action?: string } | undefined;
+  const url =
+    action === 'log-250ml' ? '/?log=250' :
+    action === 'open' || notifData?.action === 'open-activity' ? '/activity' :
+    '/hydration';
 
   clickEvent.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

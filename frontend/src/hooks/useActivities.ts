@@ -9,6 +9,18 @@ export function useActivities() {
   });
 }
 
+export function useCompleteActivity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.patch<Activity>(`/api/activities/${id}`, { is_planned: false }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['activities'] });
+      qc.invalidateQueries({ queryKey: ['today'] });
+    },
+  });
+}
+
 export function useLogActivity() {
   const qc = useQueryClient();
   return useMutation({

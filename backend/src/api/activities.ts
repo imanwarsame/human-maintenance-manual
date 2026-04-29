@@ -52,6 +52,7 @@ const ExerciseSchema = z.object({
 
 const PatchActivitySchema = z.object({
   exercises: z.array(ExerciseSchema).optional(),
+  is_planned: z.literal(false).optional(),
 });
 
 router.patch('/:id', async (req, res, next) => {
@@ -62,10 +63,11 @@ router.patch('/:id', async (req, res, next) => {
       res.status(400).json({ error: parsed.error.flatten() });
       return;
     }
-    const { exercises } = parsed.data;
-    const activity = await updateActivity(id, {
-      raw_json: exercises !== undefined ? { exercises } : undefined,
-    });
+    const { exercises, is_planned } = parsed.data;
+    const updates: Parameters<typeof updateActivity>[1] = {};
+    if (exercises !== undefined) updates.raw_json = { exercises };
+    if (is_planned === false) updates.is_planned = false;
+    const activity = await updateActivity(id, updates);
     res.json(activity);
   } catch (err) {
     next(err);

@@ -132,6 +132,19 @@ export async function deleteActivitiesForDateRange(from: string, to: string): Pr
   return data?.length ?? 0;
 }
 
+export async function deletePlannedActivitiesForDateAndType(
+  date: string,
+  type: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('activities')
+    .delete()
+    .eq('date', date)
+    .eq('type', type)
+    .eq('is_planned', true);
+  if (error) throw error;
+}
+
 export async function updateActivity(
   id: string,
   updates: Partial<Omit<CreateActivityInput, 'source' | 'external_id'>>

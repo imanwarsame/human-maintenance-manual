@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useActivitiesForDateRange } from '../hooks/useActivitiesForDateRange.ts';
+import { useCompleteActivity } from '../hooks/useActivities.ts';
 import ActivityCard from '../components/ActivityCard.tsx';
 import WorkoutPlanCard from '../components/WorkoutPlanCard.tsx';
 import RunPlanCard from '../components/RunPlanCard.tsx';
@@ -14,6 +15,7 @@ const TYPE_BG: Record<string, string> = {
   swim:     '#BAE6FD', // sky-200
   walk:     '#D9F99D', // lime-200
   hike:     '#FDE68A', // amber-200
+  mobility: '#FCE7F3', // pink-100
   other:    '#E5E7EB', // gray-200
 };
 
@@ -59,6 +61,7 @@ const TODAY = toDateStr(new Date());
 const FIFTEEN_MIN = 15 * 60 * 1000;
 
 function DayDetail({ date, activities }: { date: string; activities: Activity[] }) {
+  const { mutate: completeActivity } = useCompleteActivity();
   const dayActivities = activities.filter((a) => a.date === date);
   if (dayActivities.length === 0) {
     const label =
@@ -86,6 +89,7 @@ function DayDetail({ date, activities }: { date: string; activities: Activity[] 
               notes={a.notes}
               duration_mins={a.duration_mins}
               exercises={a.raw_json?.exercises ?? []}
+              onComplete={() => completeActivity(a.id)}
             />
           );
         }
