@@ -1,13 +1,17 @@
 import type { TodaySummary } from '../types/index.ts';
+import { usePlanContext } from '../hooks/usePlanContext.ts';
+
+const DEFAULT_TARGET_ML = 3000;
 
 interface Props {
   data: TodaySummary | undefined;
   loading: boolean;
 }
 
-const HYDRATION_TARGET_ML = 3000;
-
 export default function SummaryBar({ data, loading }: Props) {
+  const { data: targetCtx } = usePlanContext<number>('hydration_target_ml');
+  const HYDRATION_TARGET_ML = (targetCtx?.value as number | undefined) ?? DEFAULT_TARGET_ML;
+
   if (loading) {
     return <div className="grid grid-cols-3 gap-3 animate-pulse">{[0, 1, 2].map((i) => <div key={i} className="bg-white rounded-xl h-20 border border-gray-100" />)}</div>;
   }
