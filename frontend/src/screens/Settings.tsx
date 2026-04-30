@@ -38,7 +38,7 @@ function Toggle({
 }
 
 export default function Settings() {
-  const { subStatus, isEnabling, remindersEnabled, intervalHours, enable, disable, setIntervalHours } =
+  const { subStatus, isEnabling, enableError, remindersEnabled, intervalHours, enable, disable, setIntervalHours } =
     usePushNotifications();
 
   const { data: mobilityEnabledData } = usePlanContext<boolean>('mobility_reminders_enabled');
@@ -120,6 +120,9 @@ export default function Settings() {
             On iPhone or iPad, add this app to your Home Screen first, then open it from there to
             enable push notifications.
           </p>
+        )}
+        {enableError && (
+          <p className="text-xs text-red-500 px-1">{enableError}</p>
         )}
       </section>
 
