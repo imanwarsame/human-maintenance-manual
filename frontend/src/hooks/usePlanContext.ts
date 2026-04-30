@@ -13,6 +13,15 @@ export function useUpdatePlanContext() {
   return useMutation({
     mutationFn: (body: { key: string; value: unknown }) =>
       api.put<unknown>('/api/plan-context', body),
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: ['plan-context', vars.key] });
+      const prev = qc.getQueryData(['plan-context', vars.key]);
+      qc.setQueryData(['plan-context', vars.key], { key: vars.key, value: vars.value });
+      return { prev };
+    },
+    onError: (_err, vars, ctx) => {
+      qc.setQueryData(['plan-context', vars.key], ctx?.prev);
+    },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['plan-context', vars.key] });
     },
