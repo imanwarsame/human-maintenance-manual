@@ -32,19 +32,24 @@ export async function subscribeToPush(): Promise<boolean> {
     return false;
   }
 
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey),
-  });
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
 
-  const json = subscription.toJSON();
-  await api.post('/api/push/subscribe', {
-    endpoint: json.endpoint,
-    keys: json.keys,
-  });
+    const json = subscription.toJSON();
+    await api.post('/api/push/subscribe', {
+      endpoint: json.endpoint,
+      keys: json.keys,
+    });
 
-  return true;
+    return true;
+  } catch (err) {
+    console.error('Failed to subscribe to push notifications:', err);
+    return false;
+  }
 }
 
 export async function unsubscribeFromPush(): Promise<void> {

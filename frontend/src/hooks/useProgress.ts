@@ -39,7 +39,7 @@ export interface ProgressData {
 export function useProgress() {
   return useQuery({
     queryKey: ['progress'],
-    queryFn: () => api.get<ProgressData>('/progress'),
+    queryFn: () => api.get<ProgressData>('/api/progress'),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -48,7 +48,7 @@ export function useLogBodyWeight() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ date, weight_kg }: { date: string; weight_kg: number }) =>
-      api.post<unknown>('/body-weight', { date, weight_kg }),
+      api.post<unknown>('/api/body-weight', { date, weight_kg }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['progress'] });
     },
