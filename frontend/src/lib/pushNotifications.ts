@@ -20,6 +20,24 @@ export async function getPushSubscriptionStatus(): Promise<PushSubscriptionStatu
   return sub ? 'subscribed' : 'default';
 }
 
+export async function registerSubscriptionWithBackend(): Promise<boolean> {
+  if (!('serviceWorker' in navigator)) return false;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const sub = await registration.pushManager.getSubscription();
+    if (!sub) return false;
+    const json = sub.toJSON();
+    await api.post('/api/push/subscribe', {
+      endpoint: json.endpoint,
+      keys: json.keys,
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to register push subscription with backend:', err);
+    return false;
+  }
+}
+
 export async function subscribeToPush(): Promise<boolean> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
 
@@ -34,6 +52,12 @@ export async function subscribeToPush(): Promise<boolean> {
 
   try {
     const registration = await navigator.serviceWorker.ready;
+
+    // Unsubscribe any existing subscription first — a stale sub with a
+    // different VAPID key will cause subscribe() to throw a DOMException.
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) await existing.unsubscribe();
+
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey),

@@ -16,15 +16,18 @@ function Toggle({
   on,
   onToggle,
   label,
+  disabled = false,
 }: {
   on: boolean;
   onToggle: () => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onToggle}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${on ? 'bg-brand-600' : 'bg-gray-200'}`}
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${on ? 'bg-brand-600' : 'bg-gray-200'}`}
       aria-label={label}
     >
       <span
@@ -35,7 +38,7 @@ function Toggle({
 }
 
 export default function Settings() {
-  const { subStatus, remindersEnabled, intervalHours, enable, disable, setIntervalHours } =
+  const { subStatus, isEnabling, remindersEnabled, intervalHours, enable, disable, setIntervalHours } =
     usePushNotifications();
 
   const { data: mobilityEnabledData } = usePlanContext<boolean>('mobility_reminders_enabled');
@@ -77,6 +80,7 @@ export default function Settings() {
               <Toggle
                 on={remindersEnabled && isSubscribed}
                 onToggle={remindersEnabled && isSubscribed ? disable : enable}
+                disabled={isEnabling}
                 label="Toggle water reminders"
               />
             )}
