@@ -66,7 +66,16 @@ export interface Activity {
   avg_hr: number | null;
   notes: string | null;
   is_planned: boolean;
-  raw_json: { exercises?: Exercise[]; run_plan?: RunPlan } | null;
+  raw_json: {
+    exercises?: Exercise[];
+    run_plan?: RunPlan;
+    average_speed?: number;        // m/s (Strava)
+    average_cadence?: number;      // strides/min (Strava) — multiply by 2 for spm
+    total_elevation_gain?: number; // metres (Strava)
+    calories?: number;
+    max_heartrate?: number;        // bpm (Strava)
+    best_efforts?: { name: string; elapsed_time: number; distance: number }[];
+  } | null;
 }
 
 export interface CoachingNote {
