@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useActivitiesForDateRange } from '../hooks/useActivitiesForDateRange.ts';
-import { useCompleteActivity } from '../hooks/useActivities.ts';
+import { useDismissPlannedActivity } from '../hooks/useActivities.ts';
 import ActivityCard from '../components/ActivityCard.tsx';
 import WorkoutPlanCard from '../components/WorkoutPlanCard.tsx';
 import RunPlanCard from '../components/RunPlanCard.tsx';
@@ -61,7 +61,7 @@ const TODAY = toDateStr(new Date());
 const FIFTEEN_MIN = 15 * 60 * 1000;
 
 function DayDetail({ date, activities }: { date: string; activities: Activity[] }) {
-  const { mutate: completeActivity } = useCompleteActivity();
+  const { mutate: dismissActivity } = useDismissPlannedActivity();
   const dayActivities = activities.filter((a) => a.date === date);
   if (dayActivities.length === 0) {
     const label =
@@ -89,7 +89,7 @@ function DayDetail({ date, activities }: { date: string; activities: Activity[] 
               notes={a.notes}
               duration_mins={a.duration_mins}
               exercises={a.raw_json?.exercises ?? []}
-              onComplete={() => completeActivity(a.id)}
+              onComplete={() => dismissActivity(a.id)}
             />
           );
         }

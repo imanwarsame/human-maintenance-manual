@@ -145,6 +145,19 @@ export async function deletePlannedActivitiesForDateAndType(
   if (error) throw error;
 }
 
+export async function deleteManualActivitiesForDateAndType(
+  date: string,
+  type: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('activities')
+    .delete()
+    .eq('date', date)
+    .eq('type', type)
+    .eq('source', 'manual');
+  if (error) throw error;
+}
+
 export async function updateActivity(
   id: string,
   updates: Partial<Omit<CreateActivityInput, 'source' | 'external_id'>>

@@ -9,29 +9,10 @@ export function useActivities() {
   });
 }
 
-export function useCompleteActivity() {
+export function useDismissPlannedActivity() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      api.patch<Activity>(`/api/activities/${id}`, { is_planned: false }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['activities'] });
-      qc.invalidateQueries({ queryKey: ['today'] });
-    },
-  });
-}
-
-export function useLogActivity() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: {
-      date: string;
-      type: string;
-      duration_mins?: number;
-      distance_km?: number;
-      avg_hr?: number;
-      notes?: string;
-    }) => api.post<Activity>('/api/activities', body),
+    mutationFn: (id: string) => api.delete(`/api/activities/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['activities'] });
       qc.invalidateQueries({ queryKey: ['today'] });

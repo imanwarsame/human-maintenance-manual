@@ -153,7 +153,7 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
           onClick={onComplete}
           className="w-full py-2 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors"
         >
-          Mark complete
+          Dismiss
         </button>
       )}
     </div>
