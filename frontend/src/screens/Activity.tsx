@@ -93,7 +93,13 @@ function DayDetail({ date, activities }: { date: string; activities: Activity[] 
             />
           );
         }
-        return <ActivityCard key={a.id} activity={a} />;
+        return (
+          <ActivityCard
+            key={a.id}
+            activity={a}
+            onDelete={a.source === 'manual' ? () => dismissActivity(a.id) : undefined}
+          />
+        );
       })}
     </div>
   );
