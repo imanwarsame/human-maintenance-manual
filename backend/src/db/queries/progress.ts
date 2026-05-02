@@ -119,9 +119,10 @@ export async function getRunTimes(from: string, to: string): Promise<RunTimeEntr
       activity.distance_km <= 5.2 &&
       activity.duration_mins
     ) {
+      const rawElapsed = raw?.elapsed_time as number | undefined;
       results.push({
         date: activity.date,
-        elapsed_secs: Math.round(activity.duration_mins * 60),
+        elapsed_secs: rawElapsed ?? Math.round(activity.duration_mins * 60),
         distance_km: activity.distance_km,
       });
     }
