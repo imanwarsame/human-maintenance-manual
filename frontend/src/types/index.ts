@@ -101,3 +101,10 @@ export interface WeekSummary {
   activities: Activity[];
   coachingNotes: CoachingNote[];
 }
+
+export interface MacroTargets {
+  kcal?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+}
