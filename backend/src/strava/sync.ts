@@ -1,4 +1,4 @@
-import { upsertActivity, deleteManualActivitiesForDateAndType, type CreateActivityInput } from '../db/queries/activities.js';
+import { upsertActivity, updateActivity, getManualActivitiesForDateAndType, deleteManualActivitiesForDateAndType, type CreateActivityInput } from '../db/queries/activities.js';
 import { getValidStravaToken } from './oauth.js';
 
 interface StravaActivity {
@@ -44,7 +44,18 @@ export async function syncStravaActivity(stravaId: number): Promise<void> {
     raw_json: raw as Record<string, unknown>,
     external_id: String(raw.id),
   };
-  await upsertActivity(input);
+
+  const manualActivities = await getManualActivitiesForDateAndType(input.date, input.type);
+  const exercises = manualActivities.flatMap((a) => a.raw_json?.exercises ?? []);
+
+  const stravaActivity = await upsertActivity(input);
+
+  if (exercises.length > 0) {
+    await updateActivity(stravaActivity.id, {
+      raw_json: { ...stravaActivity.raw_json, exercises },
+    });
+  }
+
   await deleteManualActivitiesForDateAndType(input.date, input.type).catch((err) =>
     console.error('Failed to delete planned activity after Strava sync:', err),
   );
@@ -71,7 +82,18 @@ export async function syncRecentStravaActivities(days = 2): Promise<number> {
       raw_json: activity as Record<string, unknown>,
       external_id: String(activity.id),
     };
-    await upsertActivity(input);
+
+    const manualActivities = await getManualActivitiesForDateAndType(input.date, input.type);
+    const exercises = manualActivities.flatMap((a) => a.raw_json?.exercises ?? []);
+
+    const stravaActivity = await upsertActivity(input);
+
+    if (exercises.length > 0) {
+      await updateActivity(stravaActivity.id, {
+        raw_json: { ...stravaActivity.raw_json, exercises },
+      });
+    }
+
     await deleteManualActivitiesForDateAndType(input.date, input.type).catch((err) =>
       console.error('Failed to delete planned activity after Strava sync:', err),
     );

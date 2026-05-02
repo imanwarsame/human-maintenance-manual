@@ -145,6 +145,20 @@ export async function deletePlannedActivitiesForDateAndType(
   if (error) throw error;
 }
 
+export async function getManualActivitiesForDateAndType(
+  date: string,
+  type: string,
+): Promise<Activity[]> {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('*')
+    .eq('date', date)
+    .eq('type', type)
+    .eq('source', 'manual');
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function deleteManualActivitiesForDateAndType(
   date: string,
   type: string,
