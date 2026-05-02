@@ -1,4 +1,5 @@
 import { upsertActivity, updateActivity, getManualActivitiesForDateAndType, deleteManualActivitiesForDateAndType, type CreateActivityInput } from '../db/queries/activities.js';
+import { upsertExerciseWeights } from '../db/queries/exerciseWeights.js';
 import { getValidStravaToken } from './oauth.js';
 
 interface StravaActivity {
@@ -54,6 +55,12 @@ export async function syncStravaActivity(stravaId: number): Promise<void> {
     await updateActivity(stravaActivity.id, {
       raw_json: { ...stravaActivity.raw_json, exercises },
     });
+    const weightedExercises = exercises
+      .filter((e) => e.weight_kg != null)
+      .map((e) => ({ exercise_name: e.name, weight_kg: e.weight_kg! }));
+    if (weightedExercises.length > 0) {
+      await upsertExerciseWeights(weightedExercises);
+    }
   }
 
   await deleteManualActivitiesForDateAndType(input.date, input.type).catch((err) =>
@@ -92,6 +99,12 @@ export async function syncRecentStravaActivities(days = 2): Promise<number> {
       await updateActivity(stravaActivity.id, {
         raw_json: { ...stravaActivity.raw_json, exercises },
       });
+      const weightedExercises = exercises
+        .filter((e) => e.weight_kg != null)
+        .map((e) => ({ exercise_name: e.name, weight_kg: e.weight_kg! }));
+      if (weightedExercises.length > 0) {
+        await upsertExerciseWeights(weightedExercises);
+      }
     }
 
     await deleteManualActivitiesForDateAndType(input.date, input.type).catch((err) =>
