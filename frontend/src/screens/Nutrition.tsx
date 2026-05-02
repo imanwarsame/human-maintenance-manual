@@ -3,7 +3,7 @@ import { useMealsForDate, useMealsForDateRange, useDeleteMeal } from '../hooks/u
 import { useActivitiesForDateRange } from '../hooks/useActivitiesForDateRange.ts';
 import { usePlanContext } from '../hooks/usePlanContext.ts';
 import MealPlanCard from '../components/MealPlanCard.tsx';
-import type { MealPlan, MealType, MacroTargets } from '../types/index.ts';
+import type { MealPlan, MealType, MacroTargets, MacroDay } from '../types/index.ts';
 
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -75,13 +75,16 @@ interface MacroSummaryProps {
 }
 
 function MacroSummary({ macroTargets, calorieTarget, achieved, mealsEaten, mealsTotal, isTrainingDay }: MacroSummaryProps) {
-  const kcalTarget = macroTargets?.kcal ?? calorieTarget;
+  const dayTargets: MacroDay | null = macroTargets
+    ? (isTrainingDay ? macroTargets.training : macroTargets.rest)
+    : null;
+  const kcalTarget = dayTargets?.kcal ?? calorieTarget;
 
   const rows = [
     { label: 'Calories', value: Math.round(achieved.kcal), target: kcalTarget, unit: 'kcal', integer: true },
-    { label: 'Protein', value: Math.round(achieved.protein_g), target: macroTargets?.protein_g ?? null, unit: 'g', integer: true },
-    { label: 'Carbs', value: Math.round(achieved.carbs_g), target: macroTargets?.carbs_g ?? null, unit: 'g', integer: true },
-    { label: 'Fat', value: Math.round(achieved.fat_g), target: macroTargets?.fat_g ?? null, unit: 'g', integer: true },
+    { label: 'Protein', value: Math.round(achieved.protein_g), target: dayTargets?.protein_g ?? null, unit: 'g', integer: true },
+    { label: 'Carbs', value: Math.round(achieved.carbs_g), target: dayTargets?.carbs_g ?? null, unit: 'g', integer: true },
+    { label: 'Fat', value: Math.round(achieved.fat_g), target: dayTargets?.fat_g ?? null, unit: 'g', integer: true },
   ].filter((r) => r.target != null || r.value > 0);
 
   if (rows.length === 0 && mealsTotal === 0) return null;
