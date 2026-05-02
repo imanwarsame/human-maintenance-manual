@@ -13,6 +13,12 @@ function formatPace(speedMs: number): string {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
+function formatRunTime(secs: number): string {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 const TYPE_ICONS: Record<string, string> = {
   run: '🏃',
   cycling: '🚴',
@@ -36,6 +42,16 @@ export default function ActivityCard({ activity, onDelete }: Props) {
     month: 'short',
   });
 
+  const fiveKEffort = activity.type === 'run'
+    ? activity.raw_json?.best_efforts?.find((e) => /^(best )?5k$/i.test(e.name.trim()))
+    : undefined;
+  const isFiveKRun = activity.type === 'run' &&
+    activity.distance_km != null &&
+    activity.distance_km >= 4.8 &&
+    activity.distance_km <= 5.2;
+  const fiveKSecs = fiveKEffort?.elapsed_time ??
+    (isFiveKRun && activity.raw_json?.elapsed_time != null ? activity.raw_json.elapsed_time : undefined);
+
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3">
       <span className="text-2xl">{icon}</span>
@@ -57,7 +73,10 @@ export default function ActivityCard({ activity, onDelete }: Props) {
         </div>
         <p className="text-xs text-gray-500 mt-0.5">{date}</p>
         <div className="flex gap-3 mt-1 text-xs text-gray-600">
-          {activity.duration_mins && <span>{activity.duration_mins} min</span>}
+          {fiveKSecs != null
+            ? <span>{formatRunTime(fiveKSecs)}</span>
+            : activity.duration_mins != null && <span>{activity.duration_mins} min</span>
+          }
           {activity.distance_km && <span>{activity.distance_km} km</span>}
           {activity.avg_hr && <span>♥ {activity.avg_hr} bpm</span>}
         </div>
