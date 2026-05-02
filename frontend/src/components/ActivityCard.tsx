@@ -25,9 +25,10 @@ const TYPE_ICONS: Record<string, string> = {
 
 interface Props {
   activity: Activity;
+  onDelete?: () => void;
 }
 
-export default function ActivityCard({ activity }: Props) {
+export default function ActivityCard({ activity, onDelete }: Props) {
   const icon = TYPE_ICONS[activity.type] ?? '🏅';
   const date = new Date(activity.date).toLocaleDateString('en-GB', {
     weekday: 'short',
@@ -41,7 +42,18 @@ export default function ActivityCard({ activity }: Props) {
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-sm font-semibold text-gray-800 capitalize">{activity.type}</p>
-          <span className="text-xs text-gray-400 shrink-0">{SOURCE_LABELS[activity.source]}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-gray-400">{SOURCE_LABELS[activity.source]}</span>
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                className="text-gray-300 hover:text-red-400 transition-colors leading-none"
+                aria-label="Delete activity"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-xs text-gray-500 mt-0.5">{date}</p>
         <div className="flex gap-3 mt-1 text-xs text-gray-600">
