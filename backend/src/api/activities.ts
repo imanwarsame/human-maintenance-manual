@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { getActivities, getActivitiesForDateRange, logActivity, updateActivity } from '../db/queries/activities.js';
+import { getActivities, getActivitiesForDateRange, deleteActivity, updateActivity } from '../db/queries/activities.js';
 
 const router = Router();
 
@@ -20,29 +20,6 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-const CreateActivitySchema = z.object({
-  date: z.string(),
-  type: z.string().min(1),
-  duration_mins: z.number().int().positive().optional(),
-  distance_km: z.number().positive().optional(),
-  avg_hr: z.number().int().positive().optional(),
-  notes: z.string().optional(),
-});
-
-router.post('/', async (req, res, next) => {
-  try {
-    const parsed = CreateActivitySchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
-      return;
-    }
-    const activity = await logActivity({ ...parsed.data, source: 'manual' });
-    res.status(201).json(activity);
-  } catch (err) {
-    next(err);
-  }
-});
-
 const ExerciseSchema = z.object({
   name: z.string(),
   sets: z.number().int().positive(),
@@ -52,7 +29,6 @@ const ExerciseSchema = z.object({
 
 const PatchActivitySchema = z.object({
   exercises: z.array(ExerciseSchema).optional(),
-  is_planned: z.literal(false).optional(),
 });
 
 router.patch('/:id', async (req, res, next) => {
@@ -63,12 +39,21 @@ router.patch('/:id', async (req, res, next) => {
       res.status(400).json({ error: parsed.error.flatten() });
       return;
     }
-    const { exercises, is_planned } = parsed.data;
+    const { exercises } = parsed.data;
     const updates: Parameters<typeof updateActivity>[1] = {};
     if (exercises !== undefined) updates.raw_json = { exercises };
-    if (is_planned === false) updates.is_planned = false;
     const activity = await updateActivity(id, updates);
     res.json(activity);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await deleteActivity(id);
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

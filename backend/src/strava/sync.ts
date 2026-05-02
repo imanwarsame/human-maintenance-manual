@@ -1,4 +1,4 @@
-import { upsertActivity, deletePlannedActivitiesForDateAndType, type CreateActivityInput } from '../db/queries/activities.js';
+import { upsertActivity, deleteManualActivitiesForDateAndType, type CreateActivityInput } from '../db/queries/activities.js';
 import { getValidStravaToken } from './oauth.js';
 
 interface StravaActivity {
@@ -45,7 +45,7 @@ export async function syncStravaActivity(stravaId: number): Promise<void> {
     external_id: String(raw.id),
   };
   await upsertActivity(input);
-  await deletePlannedActivitiesForDateAndType(input.date, input.type).catch((err) =>
+  await deleteManualActivitiesForDateAndType(input.date, input.type).catch((err) =>
     console.error('Failed to delete planned activity after Strava sync:', err),
   );
 }
@@ -72,7 +72,7 @@ export async function syncRecentStravaActivities(days = 2): Promise<number> {
       external_id: String(activity.id),
     };
     await upsertActivity(input);
-    await deletePlannedActivitiesForDateAndType(input.date, input.type).catch((err) =>
+    await deleteManualActivitiesForDateAndType(input.date, input.type).catch((err) =>
       console.error('Failed to delete planned activity after Strava sync:', err),
     );
   }

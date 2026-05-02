@@ -22,6 +22,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     const body = await resp.json().catch(() => ({}));
     throw new Error((body as { error?: string }).error ?? `HTTP ${resp.status}`);
   }
+  if (resp.status === 204) return undefined as T;
   return resp.json() as Promise<T>;
 }
 
