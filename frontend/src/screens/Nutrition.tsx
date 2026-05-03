@@ -96,7 +96,8 @@ export default function Nutrition() {
   const totalCarbs = completedMeals.reduce((s, m) => s + (m.carbs_g ?? 0), 0);
   const totalFat = completedMeals.reduce((s, m) => s + (m.fat_g ?? 0), 0);
 
-  const isTrainingDay = dayActivities.some((a) => a.type !== 'cycling');
+  const REST_ACTIVITY_TYPES = new Set(['rest', 'mobility', 'cycling']);
+  const isTrainingDay = dayActivities.some((a) => !REST_ACTIVITY_TYPES.has(a.type.toLowerCase()));
   const macroTargets = macroCtx?.value ?? null;
   const calorieTarget = macroTargets
     ? (isTrainingDay ? (macroTargets.training?.kcal ?? null) : (macroTargets.rest?.kcal ?? null))
