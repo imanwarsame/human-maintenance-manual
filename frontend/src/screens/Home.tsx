@@ -13,8 +13,11 @@ export default function Home() {
 
   const completedMeals = (today?.meals ?? []).filter((m) => m.completion !== null);
   const isTrainingDay = (today?.activities ?? []).some((a) => a.type !== 'cycling');
-  const calorieTarget = calorieCtx?.value
-    ? isTrainingDay ? calorieCtx.value.training : calorieCtx.value.rest
+  const macroTargets = macroCtx?.value ?? null;
+  const calorieTarget = macroTargets
+    ? (isTrainingDay ? (macroTargets.training.kcal ?? null) : (macroTargets.rest.kcal ?? null))
+    : calorieCtx?.value
+    ? (isTrainingDay ? calorieCtx.value.training : calorieCtx.value.rest)
     : null;
 
   return (
