@@ -99,7 +99,7 @@ export default function Nutrition() {
   const isTrainingDay = dayActivities.some((a) => a.type !== 'cycling');
   const macroTargets = macroCtx?.value ?? null;
   const calorieTarget = macroTargets
-    ? (isTrainingDay ? (macroTargets.training.kcal ?? null) : (macroTargets.rest.kcal ?? null))
+    ? (isTrainingDay ? (macroTargets.training?.kcal ?? null) : (macroTargets.rest?.kcal ?? null))
     : calorieCtx?.value
     ? (isTrainingDay ? calorieCtx.value.training : calorieCtx.value.rest)
     : null;

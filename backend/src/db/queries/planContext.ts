@@ -14,7 +14,11 @@ export async function getPlanContext(key: string): Promise<unknown | null> {
     .eq('key', key)
     .maybeSingle();
   if (error) throw error;
-  return data?.value_json ?? null;
+  const raw = data?.value_json ?? null;
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return raw; }
+  }
+  return raw;
 }
 
 export async function getAllPlanContext(): Promise<Record<string, unknown>> {
@@ -22,7 +26,8 @@ export async function getAllPlanContext(): Promise<Record<string, unknown>> {
   if (error) throw error;
   const result: Record<string, unknown> = {};
   for (const row of data ?? []) {
-    result[row.key] = row.value_json;
+    const v = row.value_json;
+    result[row.key] = typeof v === 'string' ? (() => { try { return JSON.parse(v); } catch { return v; } })() : v;
   }
   return result;
 }
