@@ -12,7 +12,8 @@ export default function Home() {
   const { data: calorieCtx } = usePlanContext<{ training: number; rest: number }>('calorie_targets');
 
   const completedMeals = (today?.meals ?? []).filter((m) => m.completion !== null);
-  const isTrainingDay = (today?.activities ?? []).some((a) => a.type !== 'cycling');
+  const REST_ACTIVITY_TYPES = new Set(['rest', 'mobility', 'cycling']);
+  const isTrainingDay = (today?.activities ?? []).some((a) => !REST_ACTIVITY_TYPES.has(a.type.toLowerCase()));
   const macroTargets = macroCtx?.value ?? null;
   const calorieTarget = macroTargets
     ? (isTrainingDay ? (macroTargets.training?.kcal ?? null) : (macroTargets.rest?.kcal ?? null))
