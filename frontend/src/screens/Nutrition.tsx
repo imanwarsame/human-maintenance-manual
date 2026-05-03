@@ -4,7 +4,7 @@ import { useActivitiesForDateRange } from '../hooks/useActivitiesForDateRange.ts
 import { usePlanContext } from '../hooks/usePlanContext.ts';
 import MealPlanCard from '../components/MealPlanCard.tsx';
 import MacroSummary from '../components/MacroSummary.tsx';
-import type { MealPlan, MealType, MacroTargets } from '../types/index.ts';
+import type { MealPlan, MealType, MacroTargets, Activity } from '../types/index.ts';
 
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -42,15 +42,27 @@ function dayKcalEaten(meals: MealPlan[], date: string): number {
     .reduce((s, m) => s + (m.kcal ?? 0), 0);
 }
 
+const REST_ACTIVITY_TYPES = new Set(['rest', 'mobility', 'cycling']);
+
 function dayCalorieColor(
   meals: MealPlan[],
   date: string,
-  target: number | null,
+  rangeActivities: Activity[],
+  macroTargets: MacroTargets | null,
+  calorieCtx: { value: { training: number; rest: number } } | undefined,
   isSelected: boolean
 ): string {
-  if (!target || date > TODAY || isSelected) return '';
+  if (date > TODAY || isSelected) return '';
   const eaten = dayKcalEaten(meals, date);
   if (eaten === 0) return '';
+  const dayActs = rangeActivities.filter((a) => a.date === date);
+  const isTrain = dayActs.some((a) => !REST_ACTIVITY_TYPES.has(a.type.toLowerCase()));
+  const target = macroTargets
+    ? (isTrain ? (macroTargets.training?.kcal ?? null) : (macroTargets.rest?.kcal ?? null))
+    : calorieCtx?.value
+    ? (isTrain ? calorieCtx.value.training : calorieCtx.value.rest)
+    : null;
+  if (!target) return '';
   const pct = eaten / target;
   if (pct >= 0.8 && pct <= 1.1) return 'ring-2 ring-green-400';
   if (pct < 0.8) return 'ring-2 ring-amber-400';
@@ -81,8 +93,9 @@ export default function Nutrition() {
   const { mutate: deleteMeal } = useDeleteMeal();
   // Meals for the full range (calorie colouring)
   const { data: rangeMeals = [] } = useMealsForDateRange(rangeStart, rangeEnd);
-  // Activities for the selected day (determines training vs rest target)
-  const { data: dayActivities = [] } = useActivitiesForDateRange(selectedDate, selectedDate);
+  // Activities for the full range (determines training vs rest target per day)
+  const { data: rangeActivities = [] } = useActivitiesForDateRange(rangeStart, rangeEnd);
+  const dayActivities = rangeActivities.filter((a) => a.date === selectedDate);
   const { data: calorieCtx } = usePlanContext<{ training: number; rest: number }>('calorie_targets');
   const { data: macroCtx } = usePlanContext<MacroTargets>('macro_targets');
 
@@ -95,7 +108,6 @@ export default function Nutrition() {
   const totalCarbs = completedMeals.reduce((s, m) => s + (m.carbs_g ?? 0), 0);
   const totalFat = completedMeals.reduce((s, m) => s + (m.fat_g ?? 0), 0);
 
-  const REST_ACTIVITY_TYPES = new Set(['rest', 'mobility', 'cycling']);
   const isTrainingDay = dayActivities.some((a) => !REST_ACTIVITY_TYPES.has(a.type.toLowerCase()));
   const macroTargets = macroCtx?.value ?? null;
   const calorieTarget = macroTargets
@@ -175,7 +187,7 @@ export default function Nutrition() {
               const str = toDateStr(d);
               const isSelected = str === selectedDate;
               const isT = str === TODAY;
-              const colorRing = dayCalorieColor(rangeMeals, str, calorieTarget, isSelected);
+              const colorRing = dayCalorieColor(rangeMeals, str, rangeActivities, macroTargets, calorieCtx, isSelected);
               return (
                 <button
                   key={str}
@@ -215,7 +227,7 @@ export default function Nutrition() {
               const str = toDateStr(d);
               const isSelected = str === selectedDate;
               const isT = str === TODAY;
-              const colorRing = dayCalorieColor(rangeMeals, str, calorieTarget, isSelected);
+              const colorRing = dayCalorieColor(rangeMeals, str, rangeActivities, macroTargets, calorieCtx, isSelected);
               return (
                 <button
                   key={str}
