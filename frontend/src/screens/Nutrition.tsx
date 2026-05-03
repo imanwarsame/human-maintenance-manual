@@ -90,7 +90,6 @@ export default function Nutrition() {
     (a, b) => MEAL_ORDER.indexOf(a.meal_type) - MEAL_ORDER.indexOf(b.meal_type)
   );
   const completedMeals = (dayMeals ?? []).filter((m) => m.completion !== null);
-  const eaten = completedMeals.length;
   const totalKcal = completedMeals.reduce((s, m) => s + (m.kcal ?? 0), 0);
   const totalProtein = completedMeals.reduce((s, m) => s + (m.protein_g ?? 0), 0);
   const totalCarbs = completedMeals.reduce((s, m) => s + (m.carbs_g ?? 0), 0);
@@ -242,8 +241,6 @@ export default function Nutrition() {
         macroTargets={macroTargets}
         calorieTarget={calorieTarget}
         achieved={{ kcal: totalKcal, protein_g: totalProtein, carbs_g: totalCarbs, fat_g: totalFat }}
-        mealsEaten={eaten}
-        mealsTotal={(dayMeals ?? []).length}
         isTrainingDay={isTrainingDay}
       />
 

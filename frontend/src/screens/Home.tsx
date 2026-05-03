@@ -20,24 +20,44 @@ export default function Home() {
     ? (isTrainingDay ? calorieCtx.value.training : calorieCtx.value.rest)
     : null;
 
+  const dateStr = new Date().toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
   return (
-    <div className="space-y-5">
-      <h1 className="text-xl font-bold text-gray-900">Good day, Iman</h1>
-      <CoachingCard note={note} loading={loadingNote} />
-      <SummaryBar data={today} loading={loadingToday} />
-      <MacroSummary
-        macroTargets={macroCtx?.value ?? null}
-        calorieTarget={calorieTarget}
-        achieved={{
-          kcal: completedMeals.reduce((s, m) => s + (m.kcal ?? 0), 0),
-          protein_g: completedMeals.reduce((s, m) => s + (m.protein_g ?? 0), 0),
-          carbs_g: completedMeals.reduce((s, m) => s + (m.carbs_g ?? 0), 0),
-          fat_g: completedMeals.reduce((s, m) => s + (m.fat_g ?? 0), 0),
-        }}
-        mealsEaten={completedMeals.length}
-        mealsTotal={today?.meals.length ?? 0}
-        isTrainingDay={isTrainingDay}
-      />
+    <div>
+      <div className="pb-5 flex items-baseline justify-between">
+        <p className="text-sm text-gray-500">{dateStr}</p>
+        {!loadingToday && (
+          <span className={`text-xs font-medium ${isTrainingDay ? 'text-brand-600' : 'text-gray-400'}`}>
+            {isTrainingDay ? 'Training' : 'Rest'}
+          </span>
+        )}
+      </div>
+
+      <div className="border-t border-gray-100 py-5">
+        <CoachingCard note={note} loading={loadingNote} />
+      </div>
+
+      <div className="border-t border-gray-100 py-5">
+        <SummaryBar data={today} loading={loadingToday} />
+      </div>
+
+      <div className="border-t border-gray-100 pt-5">
+        <MacroSummary
+          macroTargets={macroCtx?.value ?? null}
+          calorieTarget={calorieTarget}
+          achieved={{
+            kcal: completedMeals.reduce((s, m) => s + (m.kcal ?? 0), 0),
+            protein_g: completedMeals.reduce((s, m) => s + (m.protein_g ?? 0), 0),
+            carbs_g: completedMeals.reduce((s, m) => s + (m.carbs_g ?? 0), 0),
+            fat_g: completedMeals.reduce((s, m) => s + (m.fat_g ?? 0), 0),
+          }}
+          isTrainingDay={isTrainingDay}
+        />
+      </div>
     </div>
   );
 }

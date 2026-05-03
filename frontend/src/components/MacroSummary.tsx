@@ -11,12 +11,10 @@ interface Props {
   macroTargets: MacroTargets | null;
   calorieTarget: number | null;
   achieved: { kcal: number; protein_g: number; carbs_g: number; fat_g: number };
-  mealsEaten: number;
-  mealsTotal: number;
   isTrainingDay: boolean;
 }
 
-export default function MacroSummary({ macroTargets, calorieTarget, achieved, mealsEaten, mealsTotal, isTrainingDay }: Props) {
+export default function MacroSummary({ macroTargets, calorieTarget, achieved, isTrainingDay }: Props) {
   const dayTargets: MacroDay | null = macroTargets
     ? (isTrainingDay ? macroTargets.training : macroTargets.rest)
     : null;
@@ -31,29 +29,22 @@ export default function MacroSummary({ macroTargets, calorieTarget, achieved, me
 
   const hasCalories = kcalTarget != null || achieved.kcal > 0;
 
-  if (!hasCalories && macroRows.length === 0 && mealsTotal === 0) return null;
+  if (!hasCalories && macroRows.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3 space-y-2.5">
-      {/* Calories — clearly labelled running total vs target */}
+    <div className="space-y-5">
       {hasCalories && (
         <div>
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Running total</p>
-              <p className="text-lg font-bold text-gray-800">{kcalAchieved.toLocaleString()} kcal</p>
-            </div>
+          <div className="flex items-baseline gap-2 mb-2">
+            <span className="text-2xl font-bold text-gray-900">{kcalAchieved.toLocaleString()}</span>
             {kcalTarget != null && (
-              <div className="text-right">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Today's target</p>
-                <p className="text-lg font-semibold text-gray-500">{kcalTarget.toLocaleString()} kcal</p>
-              </div>
+              <span className="text-sm text-gray-400">/ {kcalTarget.toLocaleString()} kcal</span>
             )}
           </div>
           {kcalTarget != null && (
-            <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
+            <div className="w-full bg-gray-100 rounded-full h-0.5">
               <div
-                className={`h-1.5 rounded-full transition-all ${macroBarColor(kcalAchieved, kcalTarget)}`}
+                className={`h-0.5 rounded-full transition-all ${macroBarColor(kcalAchieved, kcalTarget)}`}
                 style={{ width: `${Math.min(100, (achieved.kcal / kcalTarget) * 100)}%` }}
               />
             </div>
@@ -61,26 +52,25 @@ export default function MacroSummary({ macroTargets, calorieTarget, achieved, me
         </div>
       )}
 
-      {/* Protein / Carbs / Fat */}
       {macroRows.length > 0 && (
-        <div className={`grid grid-cols-3 gap-x-3 ${hasCalories ? 'pt-2 border-t border-gray-50' : ''}`}>
+        <div className="grid grid-cols-3 gap-x-4">
           {macroRows.map(({ label, value, target, unit }) => (
-            <div key={label}>
-              <div className="flex items-baseline justify-between mb-1">
-                <span className="text-xs text-gray-500">{label}</span>
-                <span className="text-xs">
-                  <span className="font-semibold text-gray-800">{value}</span>
+            <div key={label} className="space-y-1.5">
+              <div className="flex items-baseline justify-between">
+                <span className="text-[10px] uppercase tracking-wider text-gray-400">{label}</span>
+                <span className="text-xs text-gray-700 font-medium">
+                  {value}
                   {target != null ? (
-                    <span className="text-gray-400">/{target}{unit}</span>
+                    <span className="text-gray-400 font-normal">/{target}{unit}</span>
                   ) : (
-                    <span className="text-gray-400">{unit}</span>
+                    <span className="text-gray-400 font-normal">{unit}</span>
                   )}
                 </span>
               </div>
               {target != null && (
-                <div className="w-full bg-gray-100 rounded-full h-1">
+                <div className="w-full bg-gray-100 rounded-full h-0.5">
                   <div
-                    className={`h-1 rounded-full transition-all ${macroBarColor(value, target)}`}
+                    className={`h-0.5 rounded-full transition-all ${macroBarColor(value, target)}`}
                     style={{ width: `${Math.min(100, (value / target) * 100)}%` }}
                   />
                 </div>
@@ -89,15 +79,6 @@ export default function MacroSummary({ macroTargets, calorieTarget, achieved, me
           ))}
         </div>
       )}
-
-      <div className="flex items-center justify-between">
-        {isTrainingDay && <span className="text-xs text-brand-500">training day</span>}
-        {mealsTotal > 0 && (
-          <span className={`text-xs text-gray-400 ${isTrainingDay ? '' : 'ml-auto'}`}>
-            {mealsEaten}/{mealsTotal} meals eaten
-          </span>
-        )}
-      </div>
     </div>
   );
 }
