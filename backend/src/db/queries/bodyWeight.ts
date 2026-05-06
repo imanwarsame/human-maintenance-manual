@@ -4,6 +4,8 @@ export interface BodyWeightLog {
   id: string;
   date: string;
   weight_kg: number;
+  body_fat_pct: number | null;
+  muscle_mass_kg: number | null;
   created_at: string;
 }
 
@@ -19,10 +21,18 @@ export async function getBodyWeightLogs(from?: string, to?: string): Promise<Bod
   return data ?? [];
 }
 
-export async function upsertBodyWeight(date: string, weight_kg: number): Promise<BodyWeightLog> {
+export async function upsertBodyWeight(
+  date: string,
+  weight_kg: number,
+  body_fat_pct?: number | null,
+  muscle_mass_kg?: number | null,
+): Promise<BodyWeightLog> {
+  const payload: Record<string, unknown> = { date, weight_kg };
+  if (body_fat_pct !== undefined) payload.body_fat_pct = body_fat_pct;
+  if (muscle_mass_kg !== undefined) payload.muscle_mass_kg = muscle_mass_kg;
   const { data, error } = await supabase
     .from('body_weight_logs')
-    .upsert({ date, weight_kg }, { onConflict: 'date' })
+    .upsert(payload, { onConflict: 'date' })
     .select()
     .single();
   if (error) throw error;

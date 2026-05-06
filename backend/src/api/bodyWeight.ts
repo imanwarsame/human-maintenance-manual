@@ -18,6 +18,8 @@ router.get('/', async (req, res, next) => {
 const LogSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   weight_kg: z.number().positive(),
+  body_fat_pct: z.number().positive().max(100).nullable().optional(),
+  muscle_mass_kg: z.number().positive().nullable().optional(),
 });
 
 router.post('/', async (req, res, next) => {
@@ -27,7 +29,8 @@ router.post('/', async (req, res, next) => {
       res.status(400).json({ error: parsed.error.flatten() });
       return;
     }
-    const log = await upsertBodyWeight(parsed.data.date, parsed.data.weight_kg);
+    const { date, weight_kg, body_fat_pct, muscle_mass_kg } = parsed.data;
+    const log = await upsertBodyWeight(date, weight_kg, body_fat_pct, muscle_mass_kg);
     res.json(log);
   } catch (err) {
     next(err);

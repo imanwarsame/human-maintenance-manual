@@ -27,6 +27,8 @@ export interface RunTimeEntry {
 export interface BodyWeightEntry {
   date: string;
   weight_kg: number;
+  body_fat_pct: number | null;
+  muscle_mass_kg: number | null;
 }
 
 export interface ProgressData {
@@ -47,8 +49,12 @@ export function useProgress() {
 export function useLogBodyWeight() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ date, weight_kg }: { date: string; weight_kg: number }) =>
-      api.post<unknown>('/api/body-weight', { date, weight_kg }),
+    mutationFn: (payload: {
+      date: string;
+      weight_kg: number;
+      body_fat_pct?: number | null;
+      muscle_mass_kg?: number | null;
+    }) => api.post<unknown>('/api/body-weight', payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['progress'] });
     },
