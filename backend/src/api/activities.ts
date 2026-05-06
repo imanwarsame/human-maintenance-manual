@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { getActivities, getActivitiesForDateRange, deleteActivity, updateActivity } from '../db/queries/activities.js';
+import { getValidStravaToken } from '../strava/oauth.js';
 
 const router = Router();
 
@@ -44,6 +45,24 @@ router.patch('/:id', async (req, res, next) => {
     if (exercises !== undefined) updates.raw_json = { exercises };
     const activity = await updateActivity(id, updates);
     res.json(activity);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/strava-raw/:externalId', async (req, res, next) => {
+  try {
+    const token = await getValidStravaToken();
+    const resp = await fetch(`https://www.strava.com/api/v3/activities/${req.params.externalId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) {
+      res.status(resp.status).json({ error: `Strava fetch failed: ${resp.statusText}` });
+      return;
+    }
+    const data = await resp.json();
+    console.log(`[strava] raw fetch for ${req.params.externalId}:`, JSON.stringify(data, null, 2));
+    res.json(data);
   } catch (err) {
     next(err);
   }

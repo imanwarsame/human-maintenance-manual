@@ -61,6 +61,7 @@ export interface Activity {
   date: string;
   type: string;
   source: ActivitySource;
+  external_id: string | null;
   duration_mins: number | null;
   distance_km: number | null;
   avg_hr: number | null;

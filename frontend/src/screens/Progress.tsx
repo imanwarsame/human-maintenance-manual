@@ -204,7 +204,7 @@ function RunTimesSection({ data }: { data: RunTimeEntry[] }) {
       {data.length > 0 && (
         <p className="text-xs text-gray-400 text-right mb-1">lower = faster</p>
       )}
-      <LineChart data={chartData} formatY={formatTime} color="#f97316" invertY />
+      <LineChart data={chartData} formatY={formatTime} color="#f97316" />
       {data.length > 0 && (
         <div className="flex justify-between text-xs text-gray-500 mt-2">
           <span>Best: {formatTime(Math.min(...data.map((d) => d.elapsed_secs)))}</span>
