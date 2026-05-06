@@ -1,9 +1,11 @@
 import {
   upsertActivity,
   updateActivity,
+  getActivityByExternalId,
   getManualActivitiesForDateAndType,
   deleteManualActivitiesForDateAndType,
   type CreateActivityInput,
+  type Exercise,
 } from "../db/queries/activities.js";
 import { upsertExerciseWeights } from "../db/queries/exerciseWeights.js";
 import { getValidStravaToken } from "./oauth.js";
@@ -31,6 +33,26 @@ function normaliseType(stravaType: string): string {
     Hike: "hike",
   };
   return map[stravaType] ?? stravaType.toLowerCase();
+}
+
+async function resolveExercises(
+  externalId: string,
+  date: string,
+  type: string,
+): Promise<{ exercises: Exercise[]; fromManual: boolean }> {
+  const [existing, manualActivities] = await Promise.all([
+    getActivityByExternalId(externalId),
+    getManualActivitiesForDateAndType(date, type),
+  ]);
+  const manualExercises = manualActivities.flatMap(
+    (a) => a.raw_json?.exercises ?? [],
+  );
+  if (manualExercises.length > 0) {
+    return { exercises: manualExercises, fromManual: true };
+  }
+  // Re-sync: preserve exercises that were merged in a previous sync
+  const existingExercises = existing?.raw_json?.exercises ?? [];
+  return { exercises: existingExercises, fromManual: false };
 }
 
 export async function syncStravaActivity(stravaId: number): Promise<void> {
@@ -61,12 +83,10 @@ export async function syncStravaActivity(stravaId: number): Promise<void> {
     external_id: String(raw.id),
   };
 
-  const manualActivities = await getManualActivitiesForDateAndType(
+  const { exercises, fromManual } = await resolveExercises(
+    String(raw.id),
     input.date,
     input.type,
-  );
-  const exercises = manualActivities.flatMap(
-    (a) => a.raw_json?.exercises ?? [],
   );
 
   const stravaActivity = await upsertActivity(input);
@@ -75,11 +95,13 @@ export async function syncStravaActivity(stravaId: number): Promise<void> {
     await updateActivity(stravaActivity.id, {
       raw_json: { ...stravaActivity.raw_json, exercises },
     });
-    const weightedExercises = exercises
-      .filter((e) => e.weight_kg != null)
-      .map((e) => ({ exercise_name: e.name, weight_kg: e.weight_kg! }));
-    if (weightedExercises.length > 0) {
-      await upsertExerciseWeights(weightedExercises);
+    if (fromManual) {
+      const weightedExercises = exercises
+        .filter((e) => e.weight_kg != null)
+        .map((e) => ({ exercise_name: e.name, weight_kg: e.weight_kg! }));
+      if (weightedExercises.length > 0) {
+        await upsertExerciseWeights(weightedExercises);
+      }
     }
   }
 
@@ -126,12 +148,10 @@ export async function syncRecentStravaActivities(days = 2): Promise<number> {
       external_id: String(activity.id),
     };
 
-    const manualActivities = await getManualActivitiesForDateAndType(
+    const { exercises, fromManual } = await resolveExercises(
+      String(activity.id),
       input.date,
       input.type,
-    );
-    const exercises = manualActivities.flatMap(
-      (a) => a.raw_json?.exercises ?? [],
     );
 
     const stravaActivity = await upsertActivity(input);
@@ -140,11 +160,13 @@ export async function syncRecentStravaActivities(days = 2): Promise<number> {
       await updateActivity(stravaActivity.id, {
         raw_json: { ...stravaActivity.raw_json, exercises },
       });
-      const weightedExercises = exercises
-        .filter((e) => e.weight_kg != null)
-        .map((e) => ({ exercise_name: e.name, weight_kg: e.weight_kg! }));
-      if (weightedExercises.length > 0) {
-        await upsertExerciseWeights(weightedExercises);
+      if (fromManual) {
+        const weightedExercises = exercises
+          .filter((e) => e.weight_kg != null)
+          .map((e) => ({ exercise_name: e.name, weight_kg: e.weight_kg! }));
+        if (weightedExercises.length > 0) {
+          await upsertExerciseWeights(weightedExercises);
+        }
       }
     }
 

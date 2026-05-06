@@ -172,6 +172,17 @@ export async function deleteManualActivitiesForDateAndType(
   if (error) throw error;
 }
 
+export async function getActivityByExternalId(externalId: string): Promise<Activity | null> {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('*')
+    .eq('external_id', externalId)
+    .eq('source', 'strava')
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+
 export async function updateActivity(
   id: string,
   updates: Partial<Omit<CreateActivityInput, 'source' | 'external_id'>>
