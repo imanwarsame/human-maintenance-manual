@@ -1,6 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client.ts';
-import type { MealPlan } from '../types/index.ts';
+import type { MealPlan, MealType } from '../types/index.ts';
+
+export interface AddMealInput {
+  date: string;
+  meal_type: MealType;
+  meal_name: string;
+  description?: string;
+  kcal?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+  prep_notes?: string;
+}
 
 export function useMealsForDate(date: string) {
   return useQuery({
@@ -20,6 +32,17 @@ export function useDeleteMeal() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete<{ deleted: string }>(`/api/meals/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      queryClient.invalidateQueries({ queryKey: ['today'] });
+    },
+  });
+}
+
+export function useAddMeal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AddMealInput) => api.post<MealPlan>('/api/meals', body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meals'] });
       queryClient.invalidateQueries({ queryKey: ['today'] });

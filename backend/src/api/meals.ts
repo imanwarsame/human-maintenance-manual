@@ -1,7 +1,31 @@
 import { Router } from 'express';
-import { markMealEaten, getMealPlansForDate, getMealPlansForDateRange, deleteMealPlan } from '../db/queries/meals.js';
+import { markMealEaten, getMealPlansForDate, getMealPlansForDateRange, deleteMealPlan, writeMealPlan } from '../db/queries/meals.js';
 
 const router = Router();
+
+router.post('/', async (req, res, next) => {
+  try {
+    const { date, meal_type, meal_name, description, kcal, protein_g, carbs_g, fat_g, prep_notes } = req.body as {
+      date: string;
+      meal_type: string;
+      meal_name: string;
+      description?: string;
+      kcal?: number;
+      protein_g?: number;
+      carbs_g?: number;
+      fat_g?: number;
+      prep_notes?: string;
+    };
+    if (!date || !meal_type || !meal_name) {
+      res.status(400).json({ error: 'date, meal_type, and meal_name are required' });
+      return;
+    }
+    const [meal] = await writeMealPlan([{ date, meal_type: meal_type as 'breakfast' | 'lunch' | 'dinner' | 'snack', meal_name, description, kcal, protein_g, carbs_g, fat_g, prep_notes, created_by: 'manual' }]);
+    res.status(201).json(meal);
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get('/', async (req, res, next) => {
   try {
