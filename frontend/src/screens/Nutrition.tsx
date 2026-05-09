@@ -4,6 +4,7 @@ import { useActivitiesForDateRange } from '../hooks/useActivitiesForDateRange.ts
 import { usePlanContext } from '../hooks/usePlanContext.ts';
 import MealPlanCard from '../components/MealPlanCard.tsx';
 import MacroSummary from '../components/MacroSummary.tsx';
+import CommonMealPicker from '../components/CommonMealPicker.tsx';
 import type { MealPlan, MealType, MacroTargets, Activity } from '../types/index.ts';
 
 const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -255,6 +256,9 @@ export default function Nutrition() {
         achieved={{ kcal: totalKcal, protein_g: totalProtein, carbs_g: totalCarbs, fat_g: totalFat }}
         isTrainingDay={isTrainingDay}
       />
+
+      {/* Common meal quick-add (today and future only) */}
+      {(isToday || isFuture) && <CommonMealPicker date={selectedDate} />}
 
       {/* Meal list */}
       {isLoading ? (
