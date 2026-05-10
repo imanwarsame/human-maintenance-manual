@@ -40,46 +40,61 @@ const tabs: { to: string; label: string; icon: IconName }[] = [
 
 export default function Layout() {
   return (
-    <div className="flex flex-col min-h-screen max-w-2xl mx-auto">
-      {/* Desktop header */}
-      <header className="hidden sm:flex items-center gap-7 px-6 py-0 border-b border-white/[.07] bg-surface-1 sticky top-0 z-10">
-        <span className="flex items-center gap-2.5 mr-auto py-3.5">
+    <div className="flex flex-col sm:flex-row min-h-screen max-w-2xl mx-auto sm:max-w-none sm:mx-0">
+      {/* Desktop left sidebar */}
+      <aside className="hidden sm:flex sm:flex-col sm:w-52 sm:shrink-0 sm:sticky sm:top-0 sm:h-screen border-r border-white/[.07] bg-surface-1">
+        <div className="px-5 py-4 border-b border-white/[.07]">
           <span className="text-xs font-medium text-ink-tertiary tracking-wider uppercase">
             Human Maintenance Manual
           </span>
-        </span>
-        {tabs.slice(0, 5).map((tab) => (
+        </div>
+        <nav className="flex flex-col p-3 gap-0.5 flex-1">
+          {tabs.slice(0, 5).map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.to === "/"}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
+                  isActive
+                    ? "bg-brand-500/10 text-brand-500"
+                    : "text-ink-tertiary hover:text-ink-secondary hover:bg-white/[.04]"
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon name={tab.icon} active={isActive} />
+                  {tab.label}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="p-3 border-t border-white/[.07]">
           <NavLink
-            key={tab.to}
-            to={tab.to}
-            end={tab.to === "/"}
+            to="/settings"
+            end
             className={({ isActive }) =>
-              `text-sm font-medium py-3.5 border-b-2 transition-colors duration-150 -mb-px ${
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
                 isActive
-                  ? "border-brand-500 text-ink-primary"
-                  : "border-transparent text-ink-tertiary hover:text-ink-secondary"
+                  ? "bg-brand-500/10 text-brand-500"
+                  : "text-ink-tertiary hover:text-ink-secondary hover:bg-white/[.04]"
               }`
             }
           >
-            {tab.label}
+            {({ isActive }) => (
+              <>
+                <Icon name="cog" active={isActive} />
+                Settings
+              </>
+            )}
           </NavLink>
-        ))}
-        <NavLink
-          to="/settings"
-          end
-          className={({ isActive }) =>
-            `py-3.5 border-b-2 -mb-px transition-colors duration-150 ${
-              isActive ? "border-brand-500" : "border-transparent"
-            }`
-          }
-          aria-label="Settings"
-        >
-          {({ isActive }) => <Icon name="cog" active={isActive} />}
-        </NavLink>
-      </header>
+        </div>
+      </aside>
 
       {/* Page content */}
-      <main className="flex-1 px-4 py-6 pb-28 sm:pb-8">
+      <main className="flex-1 px-4 py-6 pb-28 sm:pb-8 sm:max-w-2xl">
         <Outlet />
       </main>
 
