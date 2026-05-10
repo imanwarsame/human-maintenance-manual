@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   useProgress,
   useLogBodyWeight,
@@ -8,7 +8,21 @@ import {
   type BodyWeightEntry,
 } from '../hooks/useProgress.ts';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+function useInView(threshold = 0.1) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, inView] as const;
+}
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -25,20 +39,16 @@ function formatDate(iso: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-// ─── Muscle group colours ────────────────────────────────────────────────────
-
 const MUSCLE_COLOURS: Record<string, string> = {
-  Chest: '#f97316',
-  Back: '#06b6d4',
-  Legs: '#eab308',
+  Chest:     '#f97316',
+  Back:      '#06b6d4',
+  Legs:      '#eab308',
   Shoulders: '#8b5cf6',
-  Biceps: '#3b82f6',
-  Triceps: '#22c55e',
-  Core: '#ef4444',
-  Other: '#9ca3af',
+  Biceps:    '#3b82f6',
+  Triceps:   '#22c55e',
+  Core:      '#ef4444',
+  Other:     '#6b7280',
 };
-
-// ─── Chart primitives ────────────────────────────────────────────────────────
 
 function Sparkline({ values, color = '#8b5cf6' }: { values: number[]; color?: string }) {
   if (values.length < 2) return null;
@@ -79,7 +89,7 @@ function LineChart({
   invertY?: boolean;
 }) {
   if (data.length < 2) {
-    return <p className="text-sm text-gray-400 text-center py-6">Not enough data yet</p>;
+    return <p className="text-sm text-ink-tertiary text-center py-6">Not enough data yet</p>;
   }
   const W = 400, H = 130;
   const PAD = { top: 10, right: 12, bottom: 28, left: 44 };
@@ -112,8 +122,8 @@ function LineChart({
         const y = toY(v);
         return (
           <g key={i}>
-            <line x1={PAD.left} x2={W - PAD.right} y1={y} y2={y} stroke="#f3f4f6" strokeWidth="1" />
-            <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize="9" fill="#9ca3af">
+            <line x1={PAD.left} x2={W - PAD.right} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+            <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.35)">
               {formatY(v)}
             </text>
           </g>
@@ -124,7 +134,7 @@ function LineChart({
         <circle key={i} cx={toX(i)} cy={toY(d.y)} r="3" fill={color} />
       ))}
       {xLabels.map(({ i, anchor }) => (
-        <text key={i} x={toX(i)} y={H - 6} textAnchor={anchor as 'start' | 'middle' | 'end'} fontSize="9" fill="#9ca3af">
+        <text key={i} x={toX(i)} y={H - 6} textAnchor={anchor as 'start' | 'middle' | 'end'} fontSize="9" fill="rgba(255,255,255,0.35)">
           {data[i].x}
         </text>
       ))}
@@ -133,7 +143,7 @@ function LineChart({
 }
 
 function MiniLineChart({ data, color }: { data: { x: string; y: number }[]; color: string }) {
-  if (data.length < 2) return <p className="text-xs text-gray-400 py-2">Not enough data yet</p>;
+  if (data.length < 2) return <p className="text-xs text-ink-tertiary py-2">Not enough data yet</p>;
   const W = 400, H = 70;
   const PAD = { top: 6, right: 10, bottom: 18, left: 36 };
   const innerW = W - PAD.left - PAD.right;
@@ -150,41 +160,45 @@ function MiniLineChart({ data, color }: { data: { x: string; y: number }[]; colo
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-      <line x1={PAD.left} x2={W - PAD.right} y1={toY(minY)} y2={toY(minY)} stroke="#f3f4f6" strokeWidth="1" />
-      <line x1={PAD.left} x2={W - PAD.right} y1={toY(maxY)} y2={toY(maxY)} stroke="#f3f4f6" strokeWidth="1" />
-      <text x={PAD.left - 4} y={toY(minY) + 3} textAnchor="end" fontSize="8" fill="#9ca3af">{minY.toFixed(1)}</text>
-      <text x={PAD.left - 4} y={toY(maxY) + 3} textAnchor="end" fontSize="8" fill="#9ca3af">{maxY.toFixed(1)}</text>
+      <line x1={PAD.left} x2={W - PAD.right} y1={toY(minY)} y2={toY(minY)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+      <line x1={PAD.left} x2={W - PAD.right} y1={toY(maxY)} y2={toY(maxY)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+      <text x={PAD.left - 4} y={toY(minY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{minY.toFixed(1)}</text>
+      <text x={PAD.left - 4} y={toY(maxY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{maxY.toFixed(1)}</text>
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       {data.map((d, i) => (
         <circle key={i} cx={toX(i)} cy={toY(d.y)} r="2" fill={color} />
       ))}
-      <text x={toX(0)} y={H - 2} textAnchor="start" fontSize="8" fill="#9ca3af">{data[0].x}</text>
-      <text x={toX(data.length - 1)} y={H - 2} textAnchor="end" fontSize="8" fill="#9ca3af">{data[data.length - 1].x}</text>
+      <text x={toX(0)} y={H - 2} textAnchor="start" fontSize="8" fill="rgba(255,255,255,0.35)">{data[0].x}</text>
+      <text x={toX(data.length - 1)} y={H - 2} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{data[data.length - 1].x}</text>
     </svg>
   );
 }
 
-// ─── Section components ───────────────────────────────────────────────────────
-
 function WeeklyVolumeSection({ data }: { data: VolumeByMuscle[] }) {
+  const [ref, inView] = useInView();
+
   if (data.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-4">No strength sessions logged this week.</p>;
+    return <p className="text-sm text-ink-tertiary text-center py-4">No strength sessions logged this week.</p>;
   }
   const max = Math.max(...data.map((d) => d.volume), 1);
   return (
-    <div className="space-y-2.5">
-      {data.map(({ muscle_group, volume, sets }) => {
+    <div ref={ref} className="space-y-3">
+      {data.map(({ muscle_group, volume, sets }, idx) => {
         const color = MUSCLE_COLOURS[muscle_group] ?? MUSCLE_COLOURS.Other;
         return (
           <div key={muscle_group} className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 w-20 shrink-0 text-right">{muscle_group}</span>
-            <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+            <span className="text-xs text-ink-tertiary w-20 shrink-0 text-right">{muscle_group}</span>
+            <div className="flex-1 bg-white/[.06] rounded-full h-2 overflow-hidden">
               <div
-                className="h-full rounded-full"
-                style={{ width: `${(volume / max) * 100}%`, backgroundColor: color }}
+                className="h-full rounded-full transition-[width] duration-700 ease-out"
+                style={{
+                  width: inView ? `${(volume / max) * 100}%` : '0%',
+                  backgroundColor: color,
+                  transitionDelay: `${idx * 60}ms`,
+                }}
               />
             </div>
-            <span className="text-xs text-gray-500 w-24 shrink-0">
+            <span className="text-xs text-ink-secondary w-24 shrink-0 num">
               {volume > 0 ? `${Math.round(volume).toLocaleString()} kg` : `${sets} sets`}
             </span>
           </div>
@@ -200,22 +214,20 @@ function ExerciseCard({ ex }: { ex: ExerciseHistory }) {
   const prev = values[values.length - 2];
   const trend = prev == null ? null : last > prev ? '↑' : last < prev ? '↓' : '→';
   const trendColor =
-    trend === '↑' ? 'text-green-500' : trend === '↓' ? 'text-red-400' : 'text-gray-400';
+    trend === '↑' ? 'text-green-400' : trend === '↓' ? 'text-red-400' : 'text-ink-tertiary';
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3 space-y-2">
+    <div className="bg-surface-2 rounded-xl border border-white/[.07] p-3 space-y-2 hover:-translate-y-0.5 transition-transform duration-150">
       <div className="flex items-start justify-between gap-1">
-        <p className="text-xs font-medium text-gray-700 leading-tight">{ex.name}</p>
+        <p className="text-xs font-medium text-ink-primary leading-tight">{ex.name}</p>
         {trend && <span className={`text-sm font-bold shrink-0 ${trendColor}`}>{trend}</span>}
       </div>
       <div className="flex items-end justify-between">
         <div>
-          <p className="text-lg font-bold text-gray-900 leading-none">{ex.pr_kg}</p>
-          <p className="text-xs text-gray-400 mt-0.5">kg PR</p>
+          <p className="text-lg font-bold text-ink-primary leading-none num">{ex.pr_kg}</p>
+          <p className="text-xs text-ink-tertiary mt-0.5">kg PR</p>
         </div>
-        <div className="text-violet-500">
-          <Sparkline values={values} />
-        </div>
+        <Sparkline values={values} color="#8b5cf6" />
       </div>
     </div>
   );
@@ -226,11 +238,11 @@ function RunTimesSection({ data }: { data: RunTimeEntry[] }) {
   return (
     <>
       {data.length > 0 && (
-        <p className="text-xs text-gray-400 text-right mb-1">lower = faster</p>
+        <p className="text-xs text-ink-tertiary text-right mb-1">lower = faster</p>
       )}
       <LineChart data={chartData} formatY={formatTime} color="#f97316" />
       {data.length > 0 && (
-        <div className="flex justify-between text-xs text-gray-500 mt-2">
+        <div className="flex justify-between text-xs text-ink-secondary mt-2 num">
           <span>Best: {formatTime(Math.min(...data.map((d) => d.elapsed_secs)))}</span>
           <span>Latest: {formatTime(data[data.length - 1].elapsed_secs)}</span>
         </div>
@@ -238,8 +250,6 @@ function RunTimesSection({ data }: { data: RunTimeEntry[] }) {
     </>
   );
 }
-
-// ─── Body metrics (weight + composition) ────────────────────────────────────
 
 function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
   const today = toDateStr(new Date());
@@ -250,7 +260,6 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
   const [showHistory, setShowHistory] = useState(false);
   const { mutate, isPending } = useLogBodyWeight();
 
-  // When date changes, pre-fill from existing data if available
   function handleDateChange(d: string) {
     setInputDate(d);
     const existing = data.find((e) => e.date === d);
@@ -305,33 +314,31 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
 
   return (
     <div className="space-y-5">
-      {/* Weight — prominent */}
       <div className="space-y-3">
         {latest && (
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold text-gray-900">{latest.weight_kg}</span>
-            <span className="text-sm text-gray-500">kg · {formatDate(latest.date)}</span>
+            <span className="text-2xl font-bold text-ink-primary num">{latest.weight_kg}</span>
+            <span className="text-sm text-ink-tertiary">kg · {formatDate(latest.date)}</span>
           </div>
         )}
         <LineChart data={weightChartData} formatY={(v) => `${v}kg`} color="#06b6d4" />
       </div>
 
-      {/* Body composition — discreet */}
       {(fatData.length > 0 || muscleData.length > 0) && (
-        <div className="space-y-3 pt-1 border-t border-gray-100">
+        <div className="space-y-3 pt-1 border-t border-white/[.07]">
           <div className="flex items-center gap-4">
             {fatData.length > 0 && (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Body fat</p>
-                <p className="text-sm font-medium text-gray-600">
+                <p className="text-xs text-ink-tertiary mb-0.5">Body fat</p>
+                <p className="text-sm font-medium text-ink-secondary num">
                   {fatData[fatData.length - 1].body_fat_pct}%
                 </p>
               </div>
             )}
             {muscleData.length > 0 && (
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Muscle mass</p>
-                <p className="text-sm font-medium text-gray-600">
+                <p className="text-xs text-ink-tertiary mb-0.5">Muscle mass</p>
+                <p className="text-sm font-medium text-ink-secondary num">
                   {muscleData[muscleData.length - 1].muscle_mass_kg} kg
                 </p>
               </div>
@@ -340,13 +347,13 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
           <div className="grid grid-cols-2 gap-3">
             {fatChartData.length >= 2 && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">Fat %</p>
+                <p className="text-xs text-ink-tertiary mb-1">Fat %</p>
                 <MiniLineChart data={fatChartData} color="#f97316" />
               </div>
             )}
             {muscleChartData.length >= 2 && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">Muscle kg</p>
+                <p className="text-xs text-ink-tertiary mb-1">Muscle kg</p>
                 <MiniLineChart data={muscleChartData} color="#22c55e" />
               </div>
             )}
@@ -354,12 +361,11 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
         </div>
       )}
 
-      {/* History list */}
       {data.length > 0 && (
         <div>
           <button
             onClick={() => setShowHistory((v) => !v)}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-xs text-ink-tertiary hover:text-ink-secondary transition-colors"
           >
             {showHistory ? 'Hide history' : `Show history (${data.length} entries)`}
           </button>
@@ -369,18 +375,18 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
                 <button
                   key={entry.date}
                   onClick={() => handleEdit(entry)}
-                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-surface-2 transition-colors text-left active:scale-[.98]"
                 >
-                  <span className="text-xs text-gray-500">{formatDate(entry.date)}</span>
-                  <div className="flex items-center gap-3 text-xs text-gray-700">
+                  <span className="text-xs text-ink-secondary">{formatDate(entry.date)}</span>
+                  <div className="flex items-center gap-3 text-xs text-ink-primary num">
                     <span>{entry.weight_kg} kg</span>
                     {entry.body_fat_pct != null && (
-                      <span className="text-gray-400">{entry.body_fat_pct}% fat</span>
+                      <span className="text-ink-tertiary">{entry.body_fat_pct}% fat</span>
                     )}
                     {entry.muscle_mass_kg != null && (
-                      <span className="text-gray-400">{entry.muscle_mass_kg} kg muscle</span>
+                      <span className="text-ink-tertiary">{entry.muscle_mass_kg} kg muscle</span>
                     )}
-                    <span className="text-gray-300 text-xs">edit</span>
+                    <span className="text-ink-muted text-xs">edit</span>
                   </div>
                 </button>
               ))}
@@ -389,14 +395,13 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
         </div>
       )}
 
-      {/* Log / edit form */}
       <form onSubmit={handleSubmit} className="space-y-2 pt-1">
         <div className="flex items-center gap-2">
           <input
             type="date"
             value={inputDate}
             onChange={(e) => handleDateChange(e.target.value)}
-            className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            className="bg-surface-2 border border-white/[.09] rounded-lg px-2 py-1.5 text-sm text-ink-primary focus:outline-none focus:ring-1 focus:ring-brand-500/50"
           />
           <input
             type="number"
@@ -406,7 +411,7 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
             placeholder="kg"
             value={inputWeight}
             onChange={(e) => setInputWeight(e.target.value)}
-            className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            className="w-20 bg-surface-2 border border-white/[.09] rounded-lg px-2 py-1.5 text-sm text-ink-primary placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-brand-500/50"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -418,7 +423,7 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
             placeholder="fat %"
             value={inputFat}
             onChange={(e) => setInputFat(e.target.value)}
-            className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-500 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-300"
+            className="w-24 bg-surface-2 border border-white/[.09] rounded-lg px-2 py-1.5 text-sm text-ink-secondary placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-brand-500/50"
           />
           <input
             type="number"
@@ -428,12 +433,12 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
             placeholder="muscle kg"
             value={inputMuscle}
             onChange={(e) => setInputMuscle(e.target.value)}
-            className="w-28 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-500 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-300"
+            className="w-28 bg-surface-2 border border-white/[.09] rounded-lg px-2 py-1.5 text-sm text-ink-secondary placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-brand-500/50"
           />
           <button
             type="submit"
             disabled={isPending || !inputWeight}
-            className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-brand-700 transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-brand-500 text-surface-0 text-sm font-semibold disabled:opacity-40 hover:bg-brand-600 transition-colors active:scale-[.97]"
           >
             {isEditing ? 'Update' : 'Log'}
           </button>
@@ -443,12 +448,19 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
   );
 }
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
-
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  const [ref, inView] = useInView();
   return (
-    <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{title}</p>
+    <div
+      ref={ref}
+      className="bg-surface-1 rounded-2xl border border-white/[.07] p-4 space-y-3"
+      style={{
+        opacity: inView ? 1 : 0,
+        transform: inView ? 'translateY(0)' : 'translateY(12px)',
+        transition: 'opacity 400ms ease-out, transform 400ms ease-out',
+      }}
+    >
+      <p className="text-[10px] font-semibold text-ink-tertiary uppercase tracking-widest">{title}</p>
       {children}
     </div>
   );
@@ -459,10 +471,10 @@ export default function Progress() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-xl font-bold text-gray-900">Progress</h1>
+      <div className="space-y-4 animate-fade-in">
+        <h1 className="text-base font-semibold text-ink-primary tracking-wide">Progress</h1>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="bg-gray-50 rounded-2xl h-32 animate-pulse" />
+          <div key={i} className="bg-white/[.05] rounded-2xl h-32 animate-pulse" />
         ))}
       </div>
     );
@@ -470,16 +482,16 @@ export default function Progress() {
 
   if (isError || !data) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-xl font-bold text-gray-900">Progress</h1>
-        <p className="text-sm text-red-500 text-center py-8">Failed to load progress data.</p>
+      <div className="space-y-4 animate-fade-in">
+        <h1 className="text-base font-semibold text-ink-primary tracking-wide">Progress</h1>
+        <p className="text-sm text-red-400 text-center py-8">Failed to load progress data.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">Progress</h1>
+    <div className="space-y-4 animate-fade-in">
+      <h1 className="text-base font-semibold text-ink-primary tracking-wide animate-fade-up">Progress</h1>
 
       <SectionCard title="This Week's Volume">
         <WeeklyVolumeSection data={data.weeklyVolume} />

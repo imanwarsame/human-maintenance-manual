@@ -15,9 +15,9 @@ export interface CommonMeal {
 
 const MEAL_TYPES: { value: MealType; label: string }[] = [
   { value: 'breakfast', label: 'Breakfast' },
-  { value: 'lunch', label: 'Lunch' },
-  { value: 'dinner', label: 'Dinner' },
-  { value: 'snack', label: 'Snack' },
+  { value: 'lunch',     label: 'Lunch' },
+  { value: 'dinner',    label: 'Dinner' },
+  { value: 'snack',     label: 'Snack' },
 ];
 
 interface Props {
@@ -60,13 +60,13 @@ export default function CommonMealPicker({ date }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3 space-y-2">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Add common meal</p>
+    <div className="bg-surface-1 rounded-xl border border-white/[.07] p-3 space-y-2">
+      <p className="text-[10px] font-medium text-ink-tertiary uppercase tracking-widest">Add common meal</p>
       <div className="flex gap-2">
         <select
           value={selectedMealName}
           onChange={(e) => setSelectedMealName(e.target.value)}
-          className="flex-1 text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 min-w-0"
+          className="flex-1 text-sm rounded-lg bg-surface-2 border border-white/[.09] px-2.5 py-1.5 text-ink-primary focus:outline-none focus:ring-1 focus:ring-brand-500/50 min-w-0"
         >
           <option value="">Select meal…</option>
           {meals.map((m) => (
@@ -79,7 +79,7 @@ export default function CommonMealPicker({ date }: Props) {
         <select
           value={selectedMealType}
           onChange={(e) => setSelectedMealType(e.target.value as MealType)}
-          className="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="text-sm rounded-lg bg-surface-2 border border-white/[.09] px-2.5 py-1.5 text-ink-primary focus:outline-none focus:ring-1 focus:ring-brand-500/50"
         >
           {MEAL_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -91,15 +91,15 @@ export default function CommonMealPicker({ date }: Props) {
         <button
           onClick={handleAdd}
           disabled={!selectedMeal || isPending}
-          className="text-sm font-medium px-3 py-1.5 rounded-lg bg-brand-600 text-white disabled:opacity-40 hover:bg-brand-700 transition-colors shrink-0"
+          className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-brand-500 text-surface-0 disabled:opacity-40 hover:bg-brand-600 transition-colors shrink-0 active:scale-[.97]"
         >
           Add
         </button>
       </div>
 
       {selectedMeal && (selectedMeal.description || selectedMeal.kcal != null) && (
-        <div className="text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5 px-0.5">
-          {selectedMeal.description && <span>{selectedMeal.description}</span>}
+        <div className="text-xs text-ink-tertiary flex flex-wrap gap-x-3 gap-y-0.5 px-0.5 num animate-fade-in">
+          {selectedMeal.description && <span className="not-num text-ink-secondary">{selectedMeal.description}</span>}
           {selectedMeal.kcal != null && <span>{selectedMeal.kcal} kcal</span>}
           {selectedMeal.protein_g != null && <span>{selectedMeal.protein_g}g protein</span>}
           {selectedMeal.carbs_g != null && <span>{selectedMeal.carbs_g}g carbs</span>}

@@ -6,17 +6,28 @@ import WorkoutPlanCard from '../components/WorkoutPlanCard.tsx';
 import RunPlanCard from '../components/RunPlanCard.tsx';
 import type { Activity } from '../types/index.ts';
 
-// Light pastel backgrounds per activity type — used for day cell colouring
 const TYPE_BG: Record<string, string> = {
-  run:      '#FED7AA', // orange-200
-  cycling:  '#A5F3FC', // cyan-200
-  strength: '#DDD6FE', // violet-200
-  football: '#BBF7D0', // green-200
-  swim:     '#BAE6FD', // sky-200
-  walk:     '#D9F99D', // lime-200
-  hike:     '#FDE68A', // amber-200
-  mobility: '#FCE7F3', // pink-100
-  other:    '#E5E7EB', // gray-200
+  run:      'rgba(251,146,60,0.14)',
+  cycling:  'rgba(34,211,238,0.11)',
+  strength: 'rgba(167,139,250,0.14)',
+  football: 'rgba(74,222,128,0.11)',
+  swim:     'rgba(56,189,248,0.12)',
+  walk:     'rgba(163,230,53,0.10)',
+  hike:     'rgba(251,191,36,0.12)',
+  mobility: 'rgba(249,168,212,0.10)',
+  other:    'rgba(156,163,175,0.08)',
+};
+
+const TYPE_TEXT: Record<string, string> = {
+  run:      'rgb(251,146,60)',
+  cycling:  'rgb(34,211,238)',
+  strength: 'rgb(167,139,250)',
+  football: 'rgb(74,222,128)',
+  swim:     'rgb(56,189,248)',
+  walk:     'rgb(163,230,53)',
+  hike:     'rgb(251,191,36)',
+  mobility: 'rgb(249,168,212)',
+  other:    'rgb(156,163,175)',
 };
 
 function activityBg(activities: Activity[]): string | undefined {
@@ -27,6 +38,12 @@ function activityBg(activities: Activity[]): string | undefined {
   if (colors.length === 2)
     return `linear-gradient(135deg, ${colors[0]} 50%, ${colors[1]} 50%)`;
   return `linear-gradient(135deg, ${colors[0]} 33%, ${colors[1]} 33% 66%, ${colors[2]} 66%)`;
+}
+
+function activityTextColor(activities: Activity[]): string | undefined {
+  if (activities.length === 0) return undefined;
+  const t = activities[0].type;
+  return TYPE_TEXT[t] ?? TYPE_TEXT.other;
 }
 
 function toDateStr(d: Date): string {
@@ -70,7 +87,7 @@ function DayDetail({ date, activities }: { date: string; activities: Activity[] 
         : date < TODAY
         ? 'No activity recorded.'
         : 'No activity yet today.';
-    return <p className="text-sm text-gray-400 text-center py-6">{label}</p>;
+    return <p className="text-sm text-ink-tertiary text-center py-6">{label}</p>;
   }
   return (
     <div className="space-y-3">
@@ -111,12 +128,10 @@ export default function Activity() {
 
   const selD = new Date(selectedDate);
 
-  // Week range always derived from selectedDate
   const weekDays = weekContaining(selectedDate);
   const weekStart = toDateStr(weekDays[0]);
   const weekEnd = toDateStr(weekDays[6]);
 
-  // Month range always derived from selectedDate
   const monthStart = toDateStr(new Date(selD.getFullYear(), selD.getMonth(), 1));
   const monthEnd = toDateStr(new Date(selD.getFullYear(), selD.getMonth() + 1, 0));
   const monthCells = monthGrid(selD.getFullYear(), selD.getMonth());
@@ -132,7 +147,7 @@ export default function Activity() {
 
   function shiftWeek(delta: number) {
     const d = new Date(selectedDate);
-    d.setDate(d.getDate() + delta * 7);
+    d.setDate(d.getDate() + delta);
     setSelectedDate(toDateStr(d));
   }
 
@@ -149,49 +164,58 @@ export default function Activity() {
 
   const monthLabel = selD.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
-  const isOnToday =
-    viewMode === 'week'
-      ? weekDays.some((d) => toDateStr(d) === TODAY)
-      : selD.getFullYear() === new Date().getFullYear() &&
-        selD.getMonth() === new Date().getMonth();
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Activity</h1>
+      <div className="flex items-center justify-between animate-fade-up">
+        <h1 className="text-base font-semibold text-ink-primary tracking-wide">Activity</h1>
         <div className="flex items-center gap-2">
-          <div className="flex bg-gray-100 rounded-lg p-0.5 text-xs">
+          <div className="flex bg-surface-2 rounded-lg p-0.5 text-xs border border-white/[.06]">
             {(['week', 'month'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setViewMode(v)}
-                className={`px-2.5 py-1 rounded-md transition-colors capitalize ${
-                  viewMode === v ? 'bg-white text-gray-800 shadow-sm font-medium' : 'text-gray-500'
+                className={`px-2.5 py-1 rounded-md transition-all duration-150 capitalize ${
+                  viewMode === v
+                    ? 'bg-surface-3 text-ink-primary shadow-sm font-medium'
+                    : 'text-ink-tertiary hover:text-ink-secondary'
                 }`}
               >
                 {v}
               </button>
             ))}
           </div>
-          {!isOnToday && (
-            <button
-              onClick={() => setSelectedDate(TODAY)}
-              className="text-xs font-medium text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors"
-            >
-              Today
-            </button>
-          )}
+          <button
+            onClick={() => setSelectedDate(TODAY)}
+            disabled={selectedDate === TODAY}
+            className={`text-xs font-medium px-2 py-1 rounded-lg transition-all ${
+              selectedDate === TODAY
+                ? 'text-ink-muted cursor-default'
+                : 'text-brand-500 hover:text-brand-400 hover:bg-brand-500/[.08] active:scale-[.97]'
+            }`}
+          >
+            Today
+          </button>
         </div>
       </div>
 
       {/* Week view */}
       {viewMode === 'week' && (
-        <>
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <button onClick={() => shiftWeek(-1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">‹</button>
-            <span className="font-medium">{weekLabel}</span>
-            <button onClick={() => shiftWeek(1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">›</button>
+        <div className="animate-fade-up-1 space-y-3">
+          <div className="flex items-center justify-between text-sm text-ink-secondary">
+            <button
+              onClick={() => shiftWeek(-1)}
+              className="p-1.5 rounded-lg hover:bg-surface-2 text-lg leading-none transition-colors active:scale-[.9]"
+            >
+              ‹
+            </button>
+            <span className="font-medium text-xs tracking-wide">{weekLabel}</span>
+            <button
+              onClick={() => shiftWeek(1)}
+              className="p-1.5 rounded-lg hover:bg-surface-2 text-lg leading-none transition-colors active:scale-[.9]"
+            >
+              ›
+            </button>
           </div>
 
           <div className="grid grid-cols-7 gap-1.5">
@@ -201,48 +225,62 @@ export default function Activity() {
               const isSelected = str === selectedDate;
               const isT = str === TODAY;
               const bg = isSelected ? undefined : activityBg(dayActs);
+              const textColor = !isSelected && dayActs.length > 0 ? activityTextColor(dayActs) : undefined;
 
               return (
                 <button
                   key={str}
                   onClick={() => setSelectedDate(str)}
-                  style={bg ? { background: bg } : undefined}
+                  style={{
+                    background: bg ?? undefined,
+                    color: textColor,
+                  }}
                   className={[
-                    'flex flex-col items-center py-2 rounded-xl text-xs transition-all',
+                    'flex flex-col items-center py-2 rounded-xl text-xs transition-all duration-150 active:scale-[.94]',
                     isSelected
-                      ? 'bg-brand-600 text-white shadow-md'
+                      ? 'bg-brand-500 text-surface-0 shadow-sm'
                       : bg
-                      ? 'text-gray-700 hover:opacity-80'
+                      ? 'hover:brightness-125'
                       : isT
-                      ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : 'text-gray-400 hover:bg-gray-100',
+                      ? 'bg-brand-500/[.08] text-brand-500 font-semibold'
+                      : 'text-ink-tertiary hover:bg-surface-2',
                   ].join(' ')}
                 >
                   <span className="font-medium leading-none mb-1">
                     {d.toLocaleDateString('en-GB', { weekday: 'narrow' })}
                   </span>
-                  <span className={isT && !isSelected ? 'underline underline-offset-2 decoration-brand-400' : ''}>
+                  <span className={isT && !isSelected ? 'underline underline-offset-2 decoration-brand-500/50' : ''}>
                     {d.getDate()}
                   </span>
                 </button>
               );
             })}
           </div>
-        </>
+        </div>
       )}
 
       {/* Month view */}
       {viewMode === 'month' && (
-        <>
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <button onClick={() => shiftMonth(-1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">‹</button>
-            <span className="font-medium">{monthLabel}</span>
-            <button onClick={() => shiftMonth(1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">›</button>
+        <div className="animate-fade-up-1 space-y-3">
+          <div className="flex items-center justify-between text-sm text-ink-secondary">
+            <button
+              onClick={() => shiftMonth(-1)}
+              className="p-1.5 rounded-lg hover:bg-surface-2 text-lg leading-none transition-colors active:scale-[.9]"
+            >
+              ‹
+            </button>
+            <span className="font-medium text-xs tracking-wide">{monthLabel}</span>
+            <button
+              onClick={() => shiftMonth(1)}
+              className="p-1.5 rounded-lg hover:bg-surface-2 text-lg leading-none transition-colors active:scale-[.9]"
+            >
+              ›
+            </button>
           </div>
 
           <div className="grid grid-cols-7 gap-1">
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((h, i) => (
-              <p key={i} className="text-center text-xs text-gray-400 pb-1 font-medium">{h}</p>
+              <p key={i} className="text-center text-[10px] text-ink-muted pb-1 font-medium">{h}</p>
             ))}
             {monthCells.map((d, i) => {
               if (!d) return <div key={i} />;
@@ -251,43 +289,44 @@ export default function Activity() {
               const isSelected = str === selectedDate;
               const isT = str === TODAY;
               const bg = isSelected ? undefined : activityBg(dayActs);
+              const textColor = !isSelected && dayActs.length > 0 ? activityTextColor(dayActs) : undefined;
 
               return (
                 <button
                   key={str}
                   onClick={() => setSelectedDate(str)}
-                  style={bg ? { background: bg } : undefined}
+                  style={{ background: bg ?? undefined, color: textColor }}
                   className={[
-                    'flex items-center justify-center rounded-lg text-xs h-8 transition-all',
+                    'flex items-center justify-center rounded-lg text-xs h-8 transition-all duration-150 active:scale-[.9]',
                     isSelected
-                      ? 'bg-brand-600 text-white shadow-sm'
+                      ? 'bg-brand-500 text-surface-0 shadow-sm'
                       : bg
-                      ? 'text-gray-700 hover:opacity-80'
+                      ? 'hover:brightness-125'
                       : isT
-                      ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : 'text-gray-400 hover:bg-gray-100',
+                      ? 'bg-brand-500/[.08] text-brand-500 font-semibold'
+                      : 'text-ink-tertiary hover:bg-surface-2',
                   ].join(' ')}
                 >
-                  <span className={isT && !isSelected ? 'underline underline-offset-2 decoration-brand-400' : ''}>
+                  <span className={isT && !isSelected ? 'underline underline-offset-2 decoration-brand-500/50' : ''}>
                     {d.getDate()}
                   </span>
                 </button>
               );
             })}
           </div>
-        </>
+        </div>
       )}
 
       {/* Day detail */}
       {isLoading ? (
-        <div className="space-y-3">
+        <div className="space-y-3 animate-fade-up-2">
           {[0, 1].map((i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 h-20 animate-pulse" />
+            <div key={i} className="bg-white/[.05] rounded-xl h-20 animate-pulse" />
           ))}
         </div>
       ) : (
-        <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <div className="bg-surface-1 rounded-2xl border border-white/[.07] p-4 space-y-3 animate-fade-up-2">
+          <p className="text-[10px] font-semibold text-ink-tertiary uppercase tracking-widest">
             {new Date(selectedDate).toLocaleDateString('en-GB', {
               weekday: 'long',
               day: 'numeric',

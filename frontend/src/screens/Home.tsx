@@ -28,25 +28,29 @@ export default function Home() {
   });
 
   return (
-    <div>
-      <div className="pb-5 flex items-baseline justify-between">
-        <p className="text-sm text-gray-500">{dateStr}</p>
+    <div className="animate-fade-in">
+      <div className="pb-5 flex items-baseline justify-between animate-fade-up">
+        <p className="text-sm text-ink-tertiary">{dateStr}</p>
         {!loadingToday && (
-          <span className={`text-xs font-medium ${isTrainingDay ? 'text-brand-600' : 'text-gray-400'}`}>
+          <span
+            className={`text-[10px] font-semibold uppercase tracking-widest ${
+              isTrainingDay ? 'text-brand-500' : 'text-ink-muted'
+            }`}
+          >
             {isTrainingDay ? 'Training' : 'Rest'}
           </span>
         )}
       </div>
 
-      <div className="border-t border-gray-100 py-5">
+      <div className="border-t border-white/[.06] py-5 animate-fade-up-1">
         <CoachingCard note={note} loading={loadingNote} />
       </div>
 
-      <div className="border-t border-gray-100 py-5">
+      <div className="border-t border-white/[.06] py-5 animate-fade-up-2">
         <SummaryBar data={today} loading={loadingToday} />
       </div>
 
-      <div className="border-t border-gray-100 pt-5">
+      <div className="border-t border-white/[.06] pt-5 animate-fade-up-3">
         <MacroSummary
           macroTargets={macroCtx?.value ?? null}
           calorieTarget={calorieTarget}

@@ -2,7 +2,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications.ts';
 import { usePlanContext, useUpdatePlanContext } from '../hooks/usePlanContext.ts';
 
 const INTERVAL_OPTIONS = [
-  { label: '30 minutes', value: 0.5 },
+  { label: '30 min', value: 0.5 },
   { label: '1 hour', value: 1 },
   { label: '2 hours', value: 2 },
 ];
@@ -27,11 +27,15 @@ function Toggle({
     <button
       onClick={onToggle}
       disabled={disabled}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${on ? 'bg-brand-600' : 'bg-gray-200'}`}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${
+        on ? 'bg-brand-500' : 'bg-surface-3'
+      }`}
       aria-label={label}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`}
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+          on ? 'translate-x-6' : 'translate-x-1'
+        }`}
       />
     </button>
   );
@@ -51,30 +55,30 @@ export default function Settings() {
   const isSubscribed = subStatus === 'subscribed';
 
   return (
-    <div className="max-w-lg mx-auto space-y-8">
-      <h1 className="text-xl font-semibold text-gray-900">Settings</h1>
+    <div className="max-w-lg mx-auto space-y-8 animate-fade-in">
+      <h1 className="text-base font-semibold text-ink-primary tracking-wide animate-fade-up">Settings</h1>
 
-      {/* ── Water Reminders ── */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+      {/* Water Reminders */}
+      <section className="space-y-3 animate-fade-up-1">
+        <h2 className="text-[10px] font-semibold text-ink-tertiary uppercase tracking-widest px-1">
           Water Reminders
         </h2>
 
-        <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
+        <div className="bg-surface-1 rounded-2xl border border-white/[.07] divide-y divide-white/[.06]">
           <div className="flex items-center justify-between px-4 py-4">
             <div>
-              <p className="text-sm font-medium text-gray-900">Push notifications</p>
-              <p className="text-xs text-gray-500 mt-0.5">Remind me to drink water throughout the day</p>
+              <p className="text-sm font-medium text-ink-primary">Push notifications</p>
+              <p className="text-xs text-ink-tertiary mt-0.5">Remind me to drink water throughout the day</p>
             </div>
 
             {subStatus === 'loading' && (
               <div className="w-5 h-5 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
             )}
             {subStatus === 'unsupported' && (
-              <span className="text-xs text-gray-400">Not supported</span>
+              <span className="text-xs text-ink-tertiary">Not supported</span>
             )}
             {subStatus === 'denied' && (
-              <span className="text-xs text-red-500">Blocked</span>
+              <span className="text-xs text-red-400">Blocked</span>
             )}
             {(subStatus === 'default' || subStatus === 'subscribed') && (
               <Toggle
@@ -87,62 +91,60 @@ export default function Settings() {
           </div>
 
           {isSubscribed && remindersEnabled && (
-            <div className="px-4 py-4 space-y-2">
-              <p className="text-sm font-medium text-gray-900">Reminder interval</p>
+            <div className="px-4 py-4 space-y-3">
+              <p className="text-sm font-medium text-ink-primary">Reminder interval</p>
               <div className="flex gap-2 flex-wrap">
                 {INTERVAL_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => setIntervalHours(opt.value)}
-                    className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all active:scale-[.96] ${
                       intervalHours === opt.value
-                        ? 'bg-brand-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-brand-500 text-surface-0'
+                        : 'bg-surface-2 text-ink-secondary hover:text-ink-primary border border-white/[.07]'
                     }`}
                   >
                     {opt.label}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-400">Reminders fire between 8 am and 10 pm</p>
+              <p className="text-xs text-ink-muted">Reminders fire between 8 am and 10 pm</p>
             </div>
           )}
         </div>
 
         {subStatus === 'denied' && (
-          <p className="text-xs text-gray-500 px-1">
-            Notifications are blocked. To re-enable, open your browser settings and allow
-            notifications for this site.
+          <p className="text-xs text-ink-tertiary px-1">
+            Notifications are blocked. Open your browser settings to allow notifications for this site.
           </p>
         )}
         {isIosBrowser && !isSubscribed && (
-          <p className="text-xs text-gray-500 px-1">
-            On iPhone or iPad, add this app to your Home Screen first, then open it from there to
-            enable push notifications.
+          <p className="text-xs text-ink-tertiary px-1">
+            On iPhone or iPad, add this app to your Home Screen first, then open it from there to enable push notifications.
           </p>
         )}
         {enableError && (
-          <p className="text-xs text-red-500 px-1">{enableError}</p>
+          <p className="text-xs text-red-400 px-1">{enableError}</p>
         )}
       </section>
 
-      {/* ── Mobility Reminders ── */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+      {/* Mobility Reminders */}
+      <section className="space-y-3 animate-fade-up-2">
+        <h2 className="text-[10px] font-semibold text-ink-tertiary uppercase tracking-widest px-1">
           Mobility Reminders
         </h2>
 
-        <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
+        <div className="bg-surface-1 rounded-2xl border border-white/[.07] divide-y divide-white/[.06]">
           <div className="flex items-center justify-between px-4 py-4">
             <div>
-              <p className="text-sm font-medium text-gray-900">Morning reminder</p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-sm font-medium text-ink-primary">Morning reminder</p>
+              <p className="text-xs text-ink-tertiary mt-0.5">
                 Notify me when a mobility session is planned for today
               </p>
             </div>
 
             {!isSubscribed ? (
-              <span className="text-xs text-gray-400">Enable notifications first</span>
+              <span className="text-xs text-ink-tertiary">Enable notifications first</span>
             ) : (
               <Toggle
                 on={mobilityEnabled}
@@ -156,21 +158,21 @@ export default function Settings() {
 
           {isSubscribed && mobilityEnabled && (
             <div className="flex items-center justify-between px-4 py-4">
-              <p className="text-sm font-medium text-gray-900">Reminder time</p>
+              <p className="text-sm font-medium text-ink-primary">Reminder time</p>
               <input
                 type="time"
                 value={mobilityTime}
                 onChange={(e) =>
                   updateCtx({ key: 'mobility_reminder_time', value: e.target.value })
                 }
-                className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-300"
+                className="text-sm bg-surface-2 border border-white/[.09] rounded-lg px-2 py-1 text-ink-primary focus:outline-none focus:ring-1 focus:ring-brand-500/50"
               />
             </div>
           )}
         </div>
 
         {isSubscribed && mobilityEnabled && (
-          <p className="text-xs text-gray-400 px-1">
+          <p className="text-xs text-ink-muted px-1">
             Only fires on days with a planned mobility session.
           </p>
         )}

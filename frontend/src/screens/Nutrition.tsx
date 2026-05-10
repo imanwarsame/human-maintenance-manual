@@ -45,7 +45,7 @@ function dayKcalEaten(meals: MealPlan[], date: string): number {
 
 const REST_ACTIVITY_TYPES = new Set(['rest', 'mobility', 'cycling']);
 
-function dayCalorieColor(
+function dayCalorieRing(
   meals: MealPlan[],
   date: string,
   rangeActivities: Activity[],
@@ -65,9 +65,9 @@ function dayCalorieColor(
     : null;
   if (!target) return '';
   const pct = eaten / target;
-  if (pct >= 0.8 && pct <= 1.1) return 'ring-2 ring-green-400';
-  if (pct < 0.8) return 'ring-2 ring-amber-400';
-  return 'ring-2 ring-red-400';
+  if (pct >= 0.8 && pct <= 1.1) return 'ring-1 ring-green-500/60';
+  if (pct < 0.8) return 'ring-1 ring-amber-500/60';
+  return 'ring-1 ring-red-500/60';
 }
 
 const TODAY = toDateStr(new Date());
@@ -89,12 +89,9 @@ export default function Nutrition() {
   const rangeStart = viewMode === 'week' ? weekStart : monthStart;
   const rangeEnd = viewMode === 'week' ? weekEnd : monthEnd;
 
-  // Meals for the selected day (detail view)
   const { data: dayMeals, isLoading } = useMealsForDate(selectedDate);
   const { mutate: deleteMeal } = useDeleteMeal();
-  // Meals for the full range (calorie colouring)
   const { data: rangeMeals = [] } = useMealsForDateRange(rangeStart, rangeEnd);
-  // Activities for the full range (determines training vs rest target per day)
   const { data: rangeActivities = [] } = useActivitiesForDateRange(rangeStart, rangeEnd);
   const dayActivities = rangeActivities.filter((a) => a.date === selectedDate);
   const { data: calorieCtx } = usePlanContext<{ training: number; rest: number }>('calorie_targets');
@@ -119,15 +116,10 @@ export default function Nutrition() {
 
   const isToday = selectedDate === TODAY;
   const isFuture = selectedDate > TODAY;
-  const isOnToday =
-    viewMode === 'week'
-      ? weekDays.some((d) => toDateStr(d) === TODAY)
-      : selDate.getFullYear() === new Date().getFullYear() &&
-        selDate.getMonth() === new Date().getMonth();
 
   function shiftDay(delta: number) {
     const d = new Date(selectedDate);
-    d.setDate(d.getDate() + delta * 7);
+    d.setDate(d.getDate() + delta);
     setSelectedDate(toDateStr(d));
   }
 
@@ -145,42 +137,57 @@ export default function Nutrition() {
   const monthLabel = monthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Nutrition</h1>
+      <div className="flex items-center justify-between animate-fade-up">
+        <h1 className="text-base font-semibold text-ink-primary tracking-wide">Nutrition</h1>
         <div className="flex items-center gap-2">
-          <div className="flex bg-gray-100 rounded-lg p-0.5 text-xs">
+          <div className="flex bg-surface-2 rounded-lg p-0.5 text-xs border border-white/[.06]">
             {(['week', 'month'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setViewMode(v)}
-                className={`px-2.5 py-1 rounded-md transition-colors capitalize ${
-                  viewMode === v ? 'bg-white text-gray-800 shadow-sm font-medium' : 'text-gray-500'
+                className={`px-2.5 py-1 rounded-md transition-all duration-150 capitalize ${
+                  viewMode === v
+                    ? 'bg-surface-3 text-ink-primary shadow-sm font-medium'
+                    : 'text-ink-tertiary hover:text-ink-secondary'
                 }`}
               >
                 {v}
               </button>
             ))}
           </div>
-          {!isOnToday && (
-            <button
-              onClick={() => setSelectedDate(TODAY)}
-              className="text-xs font-medium px-2 py-1 rounded-lg text-brand-600 hover:text-brand-700 hover:bg-brand-50 transition-colors"
-            >
-              Today
-            </button>
-          )}
+          <button
+            onClick={() => setSelectedDate(TODAY)}
+            disabled={isToday}
+            className={`text-xs font-medium px-2 py-1 rounded-lg transition-all ${
+              isToday
+                ? 'text-ink-muted cursor-default'
+                : 'text-brand-500 hover:text-brand-400 hover:bg-brand-500/[.08] active:scale-[.97]'
+            }`}
+          >
+            Today
+          </button>
         </div>
       </div>
 
-      {/* Week view — nav + strip */}
+      {/* Week view */}
       {viewMode === 'week' && (
-        <>
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <button onClick={() => shiftDay(-1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">‹</button>
-            <span className="font-medium text-gray-700">{weekLabel}</span>
-            <button onClick={() => shiftDay(1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">›</button>
+        <div className="animate-fade-up-1 space-y-3">
+          <div className="flex items-center justify-between text-sm text-ink-secondary">
+            <button
+              onClick={() => shiftDay(-1)}
+              className="p-1.5 rounded-lg hover:bg-surface-2 text-lg leading-none transition-colors active:scale-[.9]"
+            >
+              ‹
+            </button>
+            <span className="font-medium text-xs tracking-wide">{weekLabel}</span>
+            <button
+              onClick={() => shiftDay(1)}
+              className="p-1.5 rounded-lg hover:bg-surface-2 text-lg leading-none transition-colors active:scale-[.9]"
+            >
+              ›
+            </button>
           </div>
 
           <div className="grid grid-cols-7 gap-1">
@@ -188,17 +195,17 @@ export default function Nutrition() {
               const str = toDateStr(d);
               const isSelected = str === selectedDate;
               const isT = str === TODAY;
-              const colorRing = dayCalorieColor(rangeMeals, str, rangeActivities, macroTargets, calorieCtx, isSelected);
+              const colorRing = dayCalorieRing(rangeMeals, str, rangeActivities, macroTargets, calorieCtx, isSelected);
               return (
                 <button
                   key={str}
                   onClick={() => setSelectedDate(str)}
-                  className={`flex flex-col items-center py-1.5 rounded-xl text-xs transition-colors ${colorRing} ${
+                  className={`flex flex-col items-center py-1.5 rounded-xl text-xs transition-all duration-150 active:scale-[.94] ${colorRing} ${
                     isSelected
-                      ? 'bg-brand-600 text-white'
+                      ? 'bg-brand-500 text-surface-0'
                       : isT
-                      ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : 'text-gray-500 hover:bg-gray-100'
+                      ? 'bg-brand-500/[.08] text-brand-500 font-semibold'
+                      : 'text-ink-tertiary hover:bg-surface-2'
                   }`}
                 >
                   <span className="font-medium">{d.toLocaleDateString('en-GB', { weekday: 'narrow' })}</span>
@@ -207,38 +214,48 @@ export default function Nutrition() {
               );
             })}
           </div>
-        </>
+        </div>
       )}
 
       {/* Month view */}
       {viewMode === 'month' && (
-        <>
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <button onClick={() => shiftMonth(-1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">‹</button>
-            <span className="font-medium">{monthLabel}</span>
-            <button onClick={() => shiftMonth(1)} className="p-1 rounded hover:bg-gray-100 text-lg leading-none">›</button>
+        <div className="animate-fade-up-1 space-y-3">
+          <div className="flex items-center justify-between text-sm text-ink-secondary">
+            <button
+              onClick={() => shiftMonth(-1)}
+              className="p-1.5 rounded-lg hover:bg-surface-2 text-lg leading-none transition-colors active:scale-[.9]"
+            >
+              ‹
+            </button>
+            <span className="font-medium text-xs tracking-wide">{monthLabel}</span>
+            <button
+              onClick={() => shiftMonth(1)}
+              className="p-1.5 rounded-lg hover:bg-surface-2 text-lg leading-none transition-colors active:scale-[.9]"
+            >
+              ›
+            </button>
           </div>
 
           <div className="grid grid-cols-7 gap-px">
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-              <p key={i} className="text-center text-xs text-gray-400 py-1 font-medium">{d}</p>
+              <p key={i} className="text-center text-[10px] text-ink-muted py-1 font-medium">{d}</p>
             ))}
             {monthDays.map((d, i) => {
               if (!d) return <div key={i} />;
               const str = toDateStr(d);
               const isSelected = str === selectedDate;
               const isT = str === TODAY;
-              const colorRing = dayCalorieColor(rangeMeals, str, rangeActivities, macroTargets, calorieCtx, isSelected);
+              const colorRing = dayCalorieRing(rangeMeals, str, rangeActivities, macroTargets, calorieCtx, isSelected);
               return (
                 <button
                   key={str}
                   onClick={() => setSelectedDate(str)}
-                  className={`flex flex-col items-center py-1 rounded-lg text-xs transition-colors ${colorRing} ${
+                  className={`flex flex-col items-center py-1 rounded-lg text-xs transition-all duration-150 active:scale-[.9] ${colorRing} ${
                     isSelected
-                      ? 'bg-brand-600 text-white'
+                      ? 'bg-brand-500 text-surface-0'
                       : isT
-                      ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : 'text-gray-500 hover:bg-gray-100'
+                      ? 'bg-brand-500/[.08] text-brand-500 font-semibold'
+                      : 'text-ink-tertiary hover:bg-surface-2'
                   }`}
                 >
                   <span>{d.getDate()}</span>
@@ -246,34 +263,40 @@ export default function Nutrition() {
               );
             })}
           </div>
-        </>
+        </div>
       )}
 
       {/* Daily macro summary */}
-      <MacroSummary
-        macroTargets={macroTargets}
-        calorieTarget={calorieTarget}
-        achieved={{ kcal: totalKcal, protein_g: totalProtein, carbs_g: totalCarbs, fat_g: totalFat }}
-        isTrainingDay={isTrainingDay}
-      />
+      <div className="animate-fade-up-2">
+        <MacroSummary
+          macroTargets={macroTargets}
+          calorieTarget={calorieTarget}
+          achieved={{ kcal: totalKcal, protein_g: totalProtein, carbs_g: totalCarbs, fat_g: totalFat }}
+          isTrainingDay={isTrainingDay}
+        />
+      </div>
 
-      {/* Common meal quick-add (today and future only) */}
-      {(isToday || isFuture) && <CommonMealPicker date={selectedDate} />}
+      {/* Common meal quick-add */}
+      {(isToday || isFuture) && (
+        <div className="animate-fade-up-2">
+          <CommonMealPicker date={selectedDate} />
+        </div>
+      )}
 
       {/* Meal list */}
       {isLoading ? (
-        <div className="space-y-3">
+        <div className="space-y-3 animate-fade-up-3">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 h-24 animate-pulse" />
+            <div key={i} className="bg-white/[.05] rounded-xl h-24 animate-pulse" />
           ))}
         </div>
       ) : sorted.length === 0 ? (
-        <div className="text-center py-12 text-sm text-gray-400 space-y-1">
+        <div className="text-center py-12 text-sm text-ink-tertiary space-y-1 animate-fade-up-3">
           <p>No meal plan {isFuture ? 'for this day yet' : 'for today yet'}.</p>
-          <p>Ask Claude to plan your meals via the MCP server.</p>
+          <p className="text-ink-muted text-xs">Ask Claude to plan your meals via the MCP server.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 animate-fade-up-3">
           {sorted.map((meal) => (
             <MealPlanCard key={meal.id} meal={meal} readOnly={!isToday} onDelete={deleteMeal} />
           ))}

@@ -5,8 +5,19 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
   }
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-surface-0 text-ink-primary antialiased;
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { @apply bg-surface-1; }
+  ::-webkit-scrollbar-thumb { @apply bg-surface-3 rounded-full; }
+}
+
+@layer utilities {
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
   }
 }
