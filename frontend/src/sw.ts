@@ -45,7 +45,7 @@ self.addEventListener('notificationclick', (event) => {
 
   const notifData = clickEvent.notification.data as { action?: string } | undefined;
   const url =
-    action === 'log-250ml' ? '/?log=250' :
+    action === 'log-300ml' ? '/?log=300' :
     action === 'open' || notifData?.action === 'open-activity' ? '/activity' :
     '/hydration';
 

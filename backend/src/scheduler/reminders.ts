@@ -3,22 +3,55 @@ import webpush from 'web-push';
 import { getAllSubscriptions, deleteSubscription } from '../db/queries/pushSubscriptions.js';
 import { getPlanContext } from '../db/queries/planContext.js';
 import { getActivitiesForDate } from '../db/queries/activities.js';
+import { getHydrationForDate } from '../db/queries/hydration.js';
 
 const REMINDER_HOUR_START = 8;
-const REMINDER_HOUR_END = 22;
+const REMINDER_HOUR_END = 24; // run up to 23:30; midnight (hour 0) is blocked by HOUR_START check
 
-const PUSH_PAYLOAD = JSON.stringify({
-  title: 'Time to hydrate!',
-  body: 'Tap to log a glass of water.',
-  icon: '/icons/icon-192.png',
-  badge: '/icons/badge-96.png',
-  tag: 'water-reminder',
-  data: { action: 'open-hydration' },
-  actions: [
-    { action: 'log-250ml', title: 'Log 250 ml' },
-    { action: 'dismiss', title: 'Dismiss' },
-  ],
-});
+const DEFAULT_HYDRATION_TARGET_ML = 3000;
+
+function buildHydrationPayload(totalMl: number, targetMl: number, hour: number): string {
+  const remaining = targetMl - totalMl;
+  const pct = totalMl / targetMl;
+
+  let title: string;
+  let body: string;
+
+  if (hour < 10) {
+    title = 'Morning hydration';
+    body = totalMl === 0
+      ? 'Start your day — log your first glass.'
+      : `${totalMl} ml in so far — good start, keep it up.`;
+  } else if (hour < 13) {
+    title = 'Time to hydrate!';
+    body = pct < 0.25
+      ? `Only ${totalMl} ml logged — try to catch up.`
+      : `${totalMl} ml in — keep going.`;
+  } else if (hour < 17) {
+    title = 'Afternoon check';
+    body = pct < 0.5
+      ? `${remaining} ml to go — you're behind, drink up.`
+      : `Over halfway — ${remaining} ml left to your goal.`;
+  } else {
+    title = 'Evening hydration';
+    body = pct < 0.75
+      ? `${remaining} ml still to go — final push!`
+      : `Almost there — just ${remaining} ml left.`;
+  }
+
+  return JSON.stringify({
+    title,
+    body,
+    icon: '/icons/icon-192.png',
+    badge: '/icons/badge-96.png',
+    tag: 'water-reminder',
+    data: { action: 'open-hydration' },
+    actions: [
+      { action: 'log-300ml', title: 'Log 300 ml' },
+      { action: 'dismiss', title: 'Dismiss' },
+    ],
+  });
+}
 
 export function startReminderScheduler(): void {
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
@@ -52,7 +85,14 @@ export function startReminderScheduler(): void {
       const slot = Math.round(minuteOfDay / 30) * 30;
       if (slot % intervalMins !== 0) return;
 
-      await sendPushToAll(PUSH_PAYLOAD);
+      // Check today's hydration vs goal — skip if already hit target
+      const today = now.toISOString().slice(0, 10);
+      const { total_ml } = await getHydrationForDate(today);
+      const targetMl = Number((await getPlanContext('hydration_target_ml')) ?? DEFAULT_HYDRATION_TARGET_ML);
+      if (total_ml >= targetMl) return;
+
+      const payload = buildHydrationPayload(total_ml, targetMl, hour);
+      await sendPushToAll(payload);
     } catch (err) {
       console.error('Reminder scheduler error:', err);
     }
