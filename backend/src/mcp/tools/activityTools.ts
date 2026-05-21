@@ -32,10 +32,13 @@ const RunPlanSchema = z.object({
   intervals: z.array(RunIntervalSchema).optional().describe('Interval breakdown'),
 });
 
-// Weeks threshold after which a small weight progression is suggested
-const PROGRESSION_THRESHOLD_DAYS = 14;
-// Default increment when suggesting progression
+// Standard plate increment for progressive overload suggestions
 const PROGRESSION_INCREMENT_KG = 2.5;
+
+// Round to nearest loadable increment (2.5 kg — one plate per side)
+function roundToPlate(kg: number): number {
+  return Math.round(kg / 2.5) * 2.5;
+}
 
 function applyWeightSuggestions(
   exercises: z.infer<typeof ExerciseSchema>[],
@@ -47,9 +50,25 @@ function applyWeightSuggestions(
     const record = weightMap.get(ex.name.toLowerCase());
     if (!record) return ex;
     const daysSince = (now - new Date(record.updated_at).getTime()) / 86_400_000;
-    const weight = daysSince > PROGRESSION_THRESHOLD_DAYS
-      ? record.weight_kg + PROGRESSION_INCREMENT_KG
-      : record.weight_kg;
+
+    let weight: number;
+    if (daysSince < 8) {
+      // ≤7 days: suggest progression — user adjusts down if they struggled
+      weight = record.weight_kg + PROGRESSION_INCREMENT_KG;
+    } else if (daysSince < 14) {
+      // 8–13 days: same weight
+      weight = record.weight_kg;
+    } else if (daysSince < 21) {
+      // 14–20 days: 10% deload
+      weight = roundToPlate(record.weight_kg * 0.9);
+    } else if (daysSince < 28) {
+      // 21–27 days: 20% deload
+      weight = roundToPlate(record.weight_kg * 0.8);
+    } else {
+      // 28+ days: 30% deload
+      weight = roundToPlate(record.weight_kg * 0.7);
+    }
+
     return { ...ex, weight_kg: weight };
   });
 }
