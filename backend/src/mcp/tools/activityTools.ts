@@ -32,6 +32,28 @@ const RunPlanSchema = z.object({
   intervals: z.array(RunIntervalSchema).optional().describe('Interval breakdown'),
 });
 
+// Weeks threshold after which a small weight progression is suggested
+const PROGRESSION_THRESHOLD_DAYS = 14;
+// Default increment when suggesting progression
+const PROGRESSION_INCREMENT_KG = 2.5;
+
+function applyWeightSuggestions(
+  exercises: z.infer<typeof ExerciseSchema>[],
+  weightMap: Map<string, { weight_kg: number; updated_at: string }>,
+): z.infer<typeof ExerciseSchema>[] {
+  const now = Date.now();
+  return exercises.map((ex) => {
+    if (ex.weight_kg !== undefined) return ex;
+    const record = weightMap.get(ex.name.toLowerCase());
+    if (!record) return ex;
+    const daysSince = (now - new Date(record.updated_at).getTime()) / 86_400_000;
+    const weight = daysSince > PROGRESSION_THRESHOLD_DAYS
+      ? record.weight_kg + PROGRESSION_INCREMENT_KG
+      : record.weight_kg;
+    return { ...ex, weight_kg: weight };
+  });
+}
+
 export function registerActivityTools(server: McpServer): void {
   server.tool(
     'log_activity',
@@ -63,7 +85,13 @@ export function registerActivityTools(server: McpServer): void {
       run_plan: RunPlanSchema.optional().describe('Structured run plan with intervals'),
     },
     async ({ date, type, duration_mins, distance_km, notes, exercises, run_plan }) => {
-      const raw_json = (exercises || run_plan) ? { exercises, run_plan } : undefined;
+      let resolvedExercises = exercises;
+      if (exercises && exercises.length > 0) {
+        const weights = await getExerciseWeights();
+        const weightMap = new Map(weights.map((w) => [w.exercise_name.toLowerCase(), w]));
+        resolvedExercises = applyWeightSuggestions(exercises, weightMap);
+      }
+      const raw_json = (resolvedExercises || run_plan) ? { exercises: resolvedExercises, run_plan } : undefined;
       const activity = await logActivity({
         date,
         type,
@@ -153,9 +181,12 @@ export function registerActivityTools(server: McpServer): void {
     },
     async ({ date, activities }) => {
       await deleteActivitiesForDate(date);
+      const weights = await getExerciseWeights();
+      const weightMap = new Map(weights.map((w) => [w.exercise_name.toLowerCase(), w]));
       const created = await Promise.all(
         activities.map(({ type, duration_mins, distance_km, notes, exercises, run_plan, is_planned }) => {
-          const raw_json = (exercises || run_plan) ? { exercises, run_plan } : undefined;
+          const resolvedExercises = exercises ? applyWeightSuggestions(exercises, weightMap) : undefined;
+          const raw_json = (resolvedExercises || run_plan) ? { exercises: resolvedExercises, run_plan } : undefined;
           return logActivity({ date, type, source: 'manual', duration_mins, distance_km, notes, raw_json, is_planned: is_planned ?? false });
         })
       );
