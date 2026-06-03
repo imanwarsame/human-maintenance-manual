@@ -17,6 +17,8 @@ const ExerciseSchema = z.object({
   sets: z.number().int().positive().describe('Number of sets'),
   reps: z.number().int().positive().describe('Reps per set'),
   weight_kg: z.number().positive().optional().describe('Weight in kg'),
+  completed: z.boolean().optional().describe('Whether this exercise was completed'),
+  skipped: z.boolean().optional().describe('Whether this exercise was skipped (equipment unavailable, etc.)'),
 });
 
 const RunIntervalSchema = z.object({

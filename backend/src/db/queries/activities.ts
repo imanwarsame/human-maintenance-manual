@@ -7,6 +7,8 @@ export interface Exercise {
   sets: number;
   reps: number;
   weight_kg?: number;
+  completed?: boolean;
+  skipped?: boolean;
 }
 
 export interface RunInterval {
