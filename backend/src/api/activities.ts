@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { getActivities, getActivitiesForDateRange, deleteActivity, updateActivity } from '../db/queries/activities.js';
+import { getActivities, getActivitiesForDateRange, getActivityById, deleteActivity, updateActivity } from '../db/queries/activities.js';
 import { getValidStravaToken } from '../strava/oauth.js';
 
 const router = Router();
@@ -26,6 +26,8 @@ const ExerciseSchema = z.object({
   sets: z.number().int().positive(),
   reps: z.number().int().positive(),
   weight_kg: z.number().positive().optional(),
+  completed: z.boolean().optional(),
+  skipped: z.boolean().optional(),
 });
 
 const PatchActivitySchema = z.object({
@@ -42,7 +44,10 @@ router.patch('/:id', async (req, res, next) => {
     }
     const { exercises } = parsed.data;
     const updates: Parameters<typeof updateActivity>[1] = {};
-    if (exercises !== undefined) updates.raw_json = { exercises };
+    if (exercises !== undefined) {
+      const current = await getActivityById(id);
+      updates.raw_json = { ...(current?.raw_json ?? {}), exercises };
+    }
     const activity = await updateActivity(id, updates);
     res.json(activity);
   } catch (err) {

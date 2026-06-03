@@ -174,6 +174,16 @@ export async function deleteManualActivitiesForDateAndType(
   if (error) throw error;
 }
 
+export async function getActivityById(id: string): Promise<Activity | null> {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+
 export async function getActivityByExternalId(externalId: string): Promise<Activity | null> {
   const { data, error } = await supabase
     .from('activities')
