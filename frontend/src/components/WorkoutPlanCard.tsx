@@ -12,23 +12,19 @@ const TYPE_EMOJI: Record<string, string> = {
   other:    '🏋️',
 };
 
-type ExerciseStatus = 'none' | 'completed' | 'skipped';
-
 interface Props {
   activityId: string;
   type: string;
   notes: string | null;
   duration_mins: number | null;
   exercises: Exercise[];
-  onComplete?: () => void;
+  onDelete?: () => void;
 }
 
-export default function WorkoutPlanCard({ activityId, type, notes, duration_mins, exercises, onComplete }: Props) {
-  const [statuses, setStatuses] = useState<Record<number, ExerciseStatus>>(() => {
-    const init: Record<number, ExerciseStatus> = {};
-    exercises.forEach((ex, i) => {
-      init[i] = ex.completed ? 'completed' : ex.skipped ? 'skipped' : 'none';
-    });
+export default function WorkoutPlanCard({ activityId, type, notes, duration_mins, exercises, onDelete }: Props) {
+  const [completed, setCompleted] = useState<Set<number>>(() => {
+    const init = new Set<number>();
+    exercises.forEach((ex, i) => { if (ex.completed) init.add(i); });
     return init;
   });
   const [editingWeight, setEditingWeight] = useState<number | null>(null);
@@ -40,33 +36,24 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
   });
   const { mutate: updateWeights } = useUpdateExerciseWeights();
 
-  const buildExercises = useCallback(
-    (nextStatuses: Record<number, ExerciseStatus>, nextWeights: Record<number, number>) =>
-      exercises.map((ex, idx) => ({
+  const buildAndPersist = useCallback(
+    (nextCompleted: Set<number>, nextWeights: Record<number, number>) => {
+      const updated = exercises.map((ex, idx) => ({
         ...ex,
         weight_kg: nextWeights[idx] ?? ex.weight_kg,
-        completed: nextStatuses[idx] === 'completed',
-        skipped: nextStatuses[idx] === 'skipped',
-      })),
-    [exercises],
+        completed: nextCompleted.has(idx),
+        skipped: false,
+      }));
+      api.patch(`/api/activities/${activityId}`, { exercises: updated }).catch(() => {});
+    },
+    [activityId, exercises],
   );
 
-  function persistExercises(nextStatuses: Record<number, ExerciseStatus>, nextWeights: Record<number, number>) {
-    api.patch(`/api/activities/${activityId}`, { exercises: buildExercises(nextStatuses, nextWeights) }).catch(() => {});
-  }
-
-  function toggleCompleted(i: number) {
-    setStatuses((prev) => {
-      const next: Record<number, ExerciseStatus> = { ...prev, [i]: prev[i] === 'completed' ? 'none' : 'completed' };
-      persistExercises(next, localWeights);
-      return next;
-    });
-  }
-
-  function toggleSkipped(i: number) {
-    setStatuses((prev) => {
-      const next: Record<number, ExerciseStatus> = { ...prev, [i]: prev[i] === 'skipped' ? 'none' : 'skipped' };
-      persistExercises(next, localWeights);
+  function toggle(i: number) {
+    setCompleted((prev) => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      buildAndPersist(next, localWeights);
       return next;
     });
   }
@@ -77,7 +64,7 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
     setEditingWeight(i);
   }
 
-  async function saveWeight(i: number) {
+  function saveWeight(i: number) {
     const val = parseFloat(weightInput);
     if (!val || val <= 0) {
       setEditingWeight(null);
@@ -87,12 +74,11 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
     setLocalWeights(nextWeights);
     setEditingWeight(null);
     updateWeights([{ exercise_name: exercises[i].name, weight_kg: val }]);
-    persistExercises(statuses, nextWeights);
+    buildAndPersist(completed, nextWeights);
   }
 
   const emoji = TYPE_EMOJI[type] ?? '🏋️';
-  const completed = Object.values(statuses).filter((s) => s === 'completed').length;
-  const skipped = Object.values(statuses).filter((s) => s === 'skipped').length;
+  const done = completed.size;
   const total = exercises.length;
 
   return (
@@ -107,9 +93,20 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
             )}
           </div>
         </div>
-        <span className="text-xs font-semibold text-brand-500 bg-brand-500/[.10] px-2 py-0.5 rounded-full border border-brand-500/20">
-          Planned
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-brand-500 bg-brand-500/[.10] px-2 py-0.5 rounded-full border border-brand-500/20">
+            Planned
+          </span>
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="text-ink-muted hover:text-red-400 transition-colors text-base leading-none active:scale-90"
+              aria-label="Delete activity"
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       {notes && <p className="text-xs text-ink-tertiary italic">{notes}</p>}
@@ -117,46 +114,29 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
       {exercises.length > 0 && (
         <div className="space-y-2">
           <p className="text-[10px] font-medium text-ink-tertiary uppercase tracking-widest">
-            Exercises ·{' '}
-            <span className="num">
-              {completed}/{total}
-              {skipped > 0 && <span className="text-ink-muted"> · {skipped} skipped</span>}
-            </span>
+            Exercises · <span className="num">{done}/{total}</span>
           </p>
           {exercises.map((ex, i) => {
-            const status = statuses[i] ?? 'none';
+            const isDone = completed.has(i);
             const displayWeight = localWeights[i] ?? ex.weight_kg;
             return (
-              <div key={i} className="flex items-center gap-2 w-full">
-                {/* Complete checkbox */}
+              <div key={i} className="flex items-center gap-3 w-full">
                 <button
-                  onClick={() => toggleCompleted(i)}
-                  className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all duration-150 ${
-                    status === 'completed'
-                      ? 'border-brand-500 bg-brand-500'
-                      : 'border-white/[.2] hover:border-brand-500/50'
-                  }`}
-                  aria-label={status === 'completed' ? 'Mark incomplete' : 'Mark complete'}
-                >
-                  {status === 'completed' && (
-                    <span className="text-surface-0 text-[9px] leading-none font-bold">✓</span>
-                  )}
-                </button>
-
-                {/* Exercise name + sets×reps */}
-                <button
-                  onClick={() => toggleCompleted(i)}
-                  className="flex items-center gap-2 flex-1 text-left min-w-0 active:scale-[.98] transition-transform"
+                  onClick={() => toggle(i)}
+                  className="flex items-center gap-3 flex-1 text-left min-w-0 active:scale-[.98] transition-transform"
                 >
                   <span
-                    className={`text-sm transition-colors ${
-                      status === 'completed'
-                        ? 'line-through text-ink-muted'
-                        : status === 'skipped'
-                        ? 'text-ink-muted'
-                        : 'text-ink-primary'
+                    className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all duration-150 ${
+                      isDone
+                        ? 'border-brand-500 bg-brand-500'
+                        : 'border-white/[.2] hover:border-brand-500/50'
                     }`}
                   >
+                    {isDone && (
+                      <span className="text-surface-0 text-[9px] leading-none font-bold">✓</span>
+                    )}
+                  </span>
+                  <span className={`text-sm transition-colors ${isDone ? 'line-through text-ink-muted' : 'text-ink-primary'}`}>
                     {ex.name}
                   </span>
                   <span className="ml-auto text-xs text-ink-tertiary shrink-0 num">
@@ -164,7 +144,6 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
                   </span>
                 </button>
 
-                {/* Weight editor */}
                 {editingWeight === i ? (
                   <div className="flex items-center gap-1 shrink-0">
                     <input
@@ -192,32 +171,10 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
                     {displayWeight ? `${displayWeight} kg` : '+ kg'}
                   </button>
                 )}
-
-                {/* Skip button */}
-                <button
-                  onClick={() => toggleSkipped(i)}
-                  title={status === 'skipped' ? 'Un-skip' : 'Skip exercise'}
-                  className={`w-5 h-5 rounded flex items-center justify-center shrink-0 text-[11px] transition-all duration-150 ${
-                    status === 'skipped'
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      : 'text-ink-muted/40 hover:text-amber-400 hover:bg-amber-500/10'
-                  }`}
-                  aria-label={status === 'skipped' ? 'Un-skip' : 'Skip'}
-                >
-                  —
-                </button>
               </div>
             );
           })}
         </div>
-      )}
-      {onComplete && (
-        <button
-          onClick={onComplete}
-          className="w-full py-2 rounded-xl bg-brand-500 text-surface-0 text-sm font-semibold hover:bg-brand-600 transition-colors active:scale-[.98]"
-        >
-          Dismiss
-        </button>
       )}
     </div>
   );

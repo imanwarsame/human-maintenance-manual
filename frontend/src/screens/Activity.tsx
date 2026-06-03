@@ -106,7 +106,7 @@ function DayDetail({ date, activities }: { date: string; activities: Activity[] 
               notes={a.notes}
               duration_mins={a.duration_mins}
               exercises={a.raw_json?.exercises ?? []}
-              onComplete={() => dismissActivity(a.id)}
+              onDelete={() => dismissActivity(a.id)}
             />
           );
         }
