@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { api } from '../api/client.ts';
-import type { Activity } from '../types/index.ts';
+import type { Activity, Exercise } from '../types/index.ts';
 
 const SOURCE_LABELS: Record<string, string> = {
   strava: 'Strava',
@@ -30,6 +30,98 @@ const TYPE_ICONS: Record<string, string> = {
   walk:     '🚶',
   hike:     '🥾',
 };
+
+type ExerciseStatus = 'none' | 'completed' | 'skipped';
+
+function ExerciseLog({ activityId, exercises }: { activityId: string; exercises: Exercise[] }) {
+  const [statuses, setStatuses] = useState<Record<number, ExerciseStatus>>(() => {
+    const init: Record<number, ExerciseStatus> = {};
+    exercises.forEach((ex, i) => {
+      init[i] = ex.completed ? 'completed' : ex.skipped ? 'skipped' : 'none';
+    });
+    return init;
+  });
+
+  const persist = useCallback(
+    (nextStatuses: Record<number, ExerciseStatus>) => {
+      const updated = exercises.map((ex, idx) => ({
+        ...ex,
+        completed: nextStatuses[idx] === 'completed',
+        skipped: nextStatuses[idx] === 'skipped',
+      }));
+      api.patch(`/api/activities/${activityId}`, { exercises: updated }).catch(() => {});
+    },
+    [activityId, exercises],
+  );
+
+  function toggle(i: number, state: 'completed' | 'skipped') {
+    setStatuses((prev) => {
+      const next = { ...prev, [i]: prev[i] === state ? 'none' : state };
+      persist(next);
+      return next;
+    });
+  }
+
+  const done = Object.values(statuses).filter((s) => s === 'completed').length;
+  const skippedCount = Object.values(statuses).filter((s) => s === 'skipped').length;
+
+  return (
+    <div className="space-y-1.5 pt-1 border-t border-white/[.06]">
+      <p className="text-[10px] font-medium text-ink-tertiary uppercase tracking-widest">
+        Exercises ·{' '}
+        <span className="num">
+          {done}/{exercises.length}
+          {skippedCount > 0 && <span className="text-ink-muted"> · {skippedCount} skipped</span>}
+        </span>
+      </p>
+      {exercises.map((ex, i) => {
+        const status = statuses[i] ?? 'none';
+        return (
+          <div key={i} className="flex items-center gap-2 w-full">
+            <button
+              onClick={(e) => { e.stopPropagation(); toggle(i, 'completed'); }}
+              className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition-all duration-150 ${
+                status === 'completed'
+                  ? 'border-brand-500 bg-brand-500'
+                  : 'border-white/[.2] hover:border-brand-500/50'
+              }`}
+            >
+              {status === 'completed' && (
+                <span className="text-surface-0 text-[8px] leading-none font-bold">✓</span>
+              )}
+            </button>
+            <span
+              className={`text-xs flex-1 min-w-0 transition-colors ${
+                status === 'completed'
+                  ? 'line-through text-ink-muted'
+                  : status === 'skipped'
+                  ? 'text-ink-muted'
+                  : 'text-ink-secondary'
+              }`}
+            >
+              {ex.name}
+            </span>
+            <span className="text-[11px] text-ink-tertiary shrink-0 num">{ex.sets}×{ex.reps}</span>
+            {ex.weight_kg && (
+              <span className="text-[11px] text-ink-tertiary shrink-0 num">{ex.weight_kg} kg</span>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); toggle(i, 'skipped'); }}
+              title={status === 'skipped' ? 'Un-skip' : 'Skip'}
+              className={`w-4 h-4 rounded flex items-center justify-center shrink-0 text-[10px] transition-all duration-150 ${
+                status === 'skipped'
+                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                  : 'text-ink-muted/30 hover:text-amber-400 hover:bg-amber-500/10'
+              }`}
+            >
+              —
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface Props {
   activity: Activity;
@@ -128,6 +220,9 @@ export default function ActivityCard({ activity, onDelete }: Props) {
           {activity.notes && <p className="text-xs text-ink-muted mt-1 truncate">{activity.notes}</p>}
         </div>
       </div>
+      {activity.raw_json?.exercises && activity.raw_json.exercises.length > 0 && (
+        <ExerciseLog activityId={activity.id} exercises={activity.raw_json.exercises} />
+      )}
       {loading && <p className="text-xs text-ink-tertiary px-1">Loading Strava data…</p>}
       {rawData != null && (
         <div className="relative" onClick={(e) => e.stopPropagation()}>
