@@ -56,7 +56,7 @@ function ExerciseLog({ activityId, exercises }: { activityId: string; exercises:
 
   function toggle(i: number, state: 'completed' | 'skipped') {
     setStatuses((prev) => {
-      const next = { ...prev, [i]: prev[i] === state ? 'none' : state };
+      const next: Record<number, ExerciseStatus> = { ...prev, [i]: prev[i] === state ? 'none' : state };
       persist(next);
       return next;
     });

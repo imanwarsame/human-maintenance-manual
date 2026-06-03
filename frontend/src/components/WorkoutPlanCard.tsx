@@ -57,7 +57,7 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
 
   function toggleCompleted(i: number) {
     setStatuses((prev) => {
-      const next = { ...prev, [i]: prev[i] === 'completed' ? 'none' : 'completed' };
+      const next: Record<number, ExerciseStatus> = { ...prev, [i]: prev[i] === 'completed' ? 'none' : 'completed' };
       persistExercises(next, localWeights);
       return next;
     });
@@ -65,7 +65,7 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
 
   function toggleSkipped(i: number) {
     setStatuses((prev) => {
-      const next = { ...prev, [i]: prev[i] === 'skipped' ? 'none' : 'skipped' };
+      const next: Record<number, ExerciseStatus> = { ...prev, [i]: prev[i] === 'skipped' ? 'none' : 'skipped' };
       persistExercises(next, localWeights);
       return next;
     });
