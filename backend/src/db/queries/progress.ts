@@ -1,12 +1,12 @@
 import { getActivitiesForDateRange } from './activities.js';
 
 const MUSCLE_PATTERNS: { pattern: RegExp; group: string }[] = [
-  { pattern: /bench\s?press|chest\s?press|cable\s?fly|pec\s?deck|push.?up|dip/i, group: 'Chest' },
+  { pattern: /bench\s?press|chest\s?press|cable\s?fly|fl(y|ies|ye|yes)|pec\s?deck|push.?up|dip/i, group: 'Chest' },
   { pattern: /pull.?up|chin.?up|lat\s?pull|t-bar|face\s?pull|row|deadlift/i, group: 'Back' },
   { pattern: /squat|leg\s?press|lunge|rdl|romanian|hamstring|leg\s?curl|leg\s?ext|calf|hip\s?thrust|glute|bulgarian/i, group: 'Legs' },
-  { pattern: /overhead\s?press|ohp|shoulder\s?press|military|lateral\s?raise|front\s?raise|upright\s?row|arnold/i, group: 'Shoulders' },
-  { pattern: /bicep|hammer\s?curl|preacher|concentration\s?curl|incline\s?curl/i, group: 'Biceps' },
   { pattern: /tricep|skull\s?crusher|close\s?grip|pushdown|overhead\s?ext/i, group: 'Triceps' },
+  { pattern: /bicep|hammer\s?curl|preacher|concentration\s?curl|incline\s?curl/i, group: 'Biceps' },
+  { pattern: /overhead\s?press|ohp|shoulder\s?press|military|lateral\s?raise|front\s?raise|upright\s?row|arnold|\bpress\b/i, group: 'Shoulders' },
   { pattern: /plank|crunch|sit.?up|leg\s?raise|russian\s?twist|cable\s?crunch/i, group: 'Core' },
 ];
 
