@@ -8,6 +8,7 @@ import { registerActivityTools } from './tools/activityTools.js';
 import { registerMealTools } from './tools/mealTools.js';
 import { registerCoachingTools } from './tools/coachingTools.js';
 import { registerPlanContextTools } from './tools/planContextTools.js';
+import { registerBodyCompositionTools } from './tools/bodyCompositionTools.js';
 
 function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -21,6 +22,7 @@ function createMcpServer(): McpServer {
   registerMealTools(server);
   registerCoachingTools(server);
   registerPlanContextTools(server);
+  registerBodyCompositionTools(server);
 
   return server;
 }
