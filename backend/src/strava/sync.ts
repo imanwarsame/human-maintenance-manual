@@ -16,6 +16,7 @@ interface StravaActivity {
   sport_type: string;
   start_date: string;
   elapsed_time: number;
+  moving_time?: number;
   distance: number;
   average_heartrate?: number;
   [key: string]: unknown;
@@ -71,7 +72,7 @@ export async function syncStravaActivity(stravaId: number): Promise<void> {
     date: raw.start_date.slice(0, 10),
     type: normaliseType(raw.sport_type ?? raw.type),
     source: "strava",
-    duration_mins: Math.round(raw.elapsed_time / 60),
+    duration_mins: Math.round((raw.moving_time ?? raw.elapsed_time) / 60),
     distance_km:
       raw.distance > 0
         ? Math.round((raw.distance / 1000) * 100) / 100
@@ -136,7 +137,7 @@ export async function syncRecentStravaActivities(days = 2): Promise<number> {
       date: activity.start_date.slice(0, 10),
       type: normaliseType(activity.sport_type ?? activity.type),
       source: "strava",
-      duration_mins: Math.round(activity.elapsed_time / 60),
+      duration_mins: Math.round((activity.moving_time ?? activity.elapsed_time) / 60),
       distance_km:
         activity.distance > 0
           ? Math.round((activity.distance / 1000) * 100) / 100
@@ -202,7 +203,7 @@ export async function syncAllStravaActivities(): Promise<number> {
         date: activity.start_date.slice(0, 10),
         type: normaliseType(activity.sport_type ?? activity.type),
         source: "strava",
-        duration_mins: Math.round(activity.elapsed_time / 60),
+        duration_mins: Math.round((activity.moving_time ?? activity.elapsed_time) / 60),
         distance_km:
           activity.distance > 0
             ? Math.round((activity.distance / 1000) * 100) / 100
