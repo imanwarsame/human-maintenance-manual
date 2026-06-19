@@ -78,6 +78,7 @@ export interface Activity {
     calories?: number;
     max_heartrate?: number;        // bpm (Strava)
     elapsed_time?: number;
+    moving_time?: number;
     best_efforts?: { name: string; elapsed_time: number; distance: number }[];
   } | null;
 }

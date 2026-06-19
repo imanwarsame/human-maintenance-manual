@@ -166,7 +166,13 @@ export default function ActivityCard({ activity, onDelete }: Props) {
           <div className="flex gap-3 mt-1 text-xs text-ink-secondary num">
             {fiveKSecs != null
               ? <span>{formatRunTime(fiveKSecs)}</span>
-              : activity.duration_mins != null && <span>{activity.duration_mins} min</span>
+              : (() => {
+                  const movingSecs = activity.raw_json?.moving_time;
+                  const mins = movingSecs != null
+                    ? Math.round(movingSecs / 60)
+                    : activity.duration_mins;
+                  return mins != null ? <span>{mins} min</span> : null;
+                })()
             }
             {activity.distance_km && <span>{activity.distance_km} km</span>}
             {activity.avg_hr && <span>♥ {activity.avg_hr} bpm</span>}
