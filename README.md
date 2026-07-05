@@ -16,7 +16,7 @@ Frontend (React/Vite PWA)  ──REST──▶  Backend (Express + MCP)  ──�
 - **Backend**: Single Node.js/Express process — REST API on `/api`, MCP server on `/mcp`
 - **Database**: Supabase (Postgres). Service key lives only in the backend.
 - **Auth**: Supabase magic link. Claude connects via MCP bearer token only.
-- **Activity sync**: Garmin → Strava (via Garmin's built-in Strava sync) → this app via Strava webhook
+- **Activity sync**: Garmin → intervals.icu (via Garmin's built-in integration) → this app via the intervals.icu API
 
 ---
 
@@ -25,7 +25,7 @@ Frontend (React/Vite PWA)  ──REST──▶  Backend (Express + MCP)  ──�
 - [Node.js](https://nodejs.org) 20+
 - A [Supabase](https://supabase.com) account (free tier works)
 - A [Railway](https://railway.app) account for deployment
-- A [Strava](https://www.strava.com/settings/api) developer app (optional, for activity sync)
+- An [intervals.icu](https://intervals.icu) account (free — optional, for Garmin activity sync)
 - Claude Desktop or Claude.ai with MCP support
 
 ---
@@ -80,7 +80,11 @@ SUPABASE_SERVICE_KEY=your-service-role-key   # Never expose this to the frontend
 # MCP auth — Claude uses this bearer token to connect
 MCP_SECRET=generate-a-long-random-string-here
 
-# Strava (optional — skip if not syncing activities)
+# Garmin activity sync via intervals.icu (optional — skip if not syncing activities)
+INTERVALS_ICU_API_KEY=your-intervals-icu-api-key   # intervals.icu → Settings → Developer Settings
+INTERVALS_ICU_ATHLETE_ID=i123456                   # Optional — defaults to the key's owner
+
+# Strava (legacy — Strava's API now requires a paid subscription)
 STRAVA_CLIENT_ID=your-strava-client-id
 STRAVA_CLIENT_SECRET=your-strava-client-secret
 STRAVA_VERIFY_TOKEN=another-random-string   # Used to verify Strava webhook calls
@@ -158,32 +162,30 @@ GET https://your-backend.railway.app/health
 
 ---
 
-## 5. Strava + Garmin activity sync
+## 5. Garmin activity sync (via intervals.icu)
 
-Activity sync flow: **Garmin → Strava** (via Garmin's built-in integration) **→ this app** via Strava webhook. You only need to connect Strava — Garmin feeds it automatically.
+Activity sync flow: **Garmin → intervals.icu** (via Garmin's built-in integration) **→ this app**, which polls the intervals.icu API every 5 minutes.
+
+> **Why intervals.icu?** Strava's API is now restricted to paid subscribers, Garmin's official Connect Developer Program is closed to new applicants, and Garmin blocks automated password logins to Garmin Connect. [intervals.icu](https://intervals.icu) is a free training platform that is an approved Garmin partner — Garmin Connect pushes every activity to it automatically, and it exposes a free, stable REST API.
 
 ### Setup
 
-1. Register a Strava API app at [strava.com/settings/api](https://www.strava.com/settings/api). Set the callback domain to your backend host.
-2. In Garmin Connect, enable the Strava integration under Settings → Connected Apps.
-3. Visit `https://your-backend.railway.app/strava/connect` and complete OAuth to authorise the backend.
-4. Register the Strava webhook (do this after deploying — Strava needs a public URL):
+1. Create a free account at [intervals.icu](https://intervals.icu).
+2. In intervals.icu, go to Settings → scroll to **Garmin** under Integrations and connect your Garmin Connect account. Existing history syncs across automatically.
+3. Still in Settings, scroll to **Developer Settings** and generate an **API key**. Set it as `INTERVALS_ICU_API_KEY` on the backend. (Your athlete id — shown in the URL as `i123456` — can go in `INTERVALS_ICU_ATHLETE_ID`, but it defaults to the key's owner.)
+4. Backfill existing activities:
 
 ```bash
-curl -X POST https://www.strava.com/api/v3/push_subscriptions \
-  -d "client_id=$STRAVA_CLIENT_ID" \
-  -d "client_secret=$STRAVA_CLIENT_SECRET" \
-  -d "callback_url=https://your-backend.railway.app/strava/webhook" \
-  -d "verify_token=$STRAVA_VERIFY_TOKEN"
+curl -X POST https://your-backend.railway.app/garmin/sync-all
 ```
 
-5. Backfill existing Strava activities:
+New activities appear within ~5 minutes of your watch syncing (backend polls intervals.icu). Trigger an immediate sync with `POST /garmin/sync` or by asking Claude to run the `sync_garmin` MCP tool.
 
-```bash
-curl -X POST https://your-backend.railway.app/strava/webhook/sync-all
-```
+Activities previously synced from Strava are kept; the Garmin sync skips any day/type that already has a Strava-sourced entry, so the backfill won't create duplicates.
 
-Manual activity entry via the Activity screen is always available without Strava.
+For runs of 5 km or more, the sync fetches the activity's GPS streams from intervals.icu and computes the fastest contiguous 5 km — stored as a Strava-compatible `best_efforts` entry so 5K PB tracking keeps working.
+
+Manual activity entry via the Activity screen is always available without any sync configured.
 
 ---
 
@@ -391,7 +393,7 @@ The backend exposes 23 tools to Claude across 6 modules.
 | `clear_activities` | Clear all activities for a date |
 | `get_activities` | Return recent activity sessions |
 | `get_exercise_weights` | Return current working weights |
-| `sync_strava` | Trigger a manual Strava sync |
+| `sync_garmin` | Trigger a manual Garmin sync (via intervals.icu) |
 
 ### Meals
 | Tool | Description |
@@ -423,7 +425,7 @@ Tables created by the migrations:
 | Table | Description |
 |-------|-------------|
 | `hydration_logs` | Water intake entries |
-| `activities` | Training sessions (Strava-synced or manual). `is_planned` flag distinguishes planned vs logged. |
+| `activities` | Training sessions (Garmin-synced or manual). `is_planned` flag distinguishes planned vs logged. |
 | `meal_plans` | Claude-written or manual meal plan entries |
 | `meal_completions` | Timestamps when meals were eaten |
 | `coaching_notes` | Daily and weekly notes from Claude |

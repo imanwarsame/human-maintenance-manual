@@ -5,8 +5,9 @@ import apiRouter from "./api/router.js";
 import { mountMcp } from "./mcp/server.js";
 import stravaOauthRouter from "./strava/oauth.js";
 import stravaWebhookRouter from "./strava/webhook.js";
+import garminRouter from "./garmin/routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { syncRecentStravaActivities } from "./strava/sync.js";
+import { syncRecentGarminActivities } from "./garmin/sync.js";
 import {
   startReminderScheduler,
   startMobilityReminderScheduler,
@@ -29,9 +30,12 @@ mountMcp(app);
 // REST API (Supabase JWT auth)
 app.use("/api", apiRouter);
 
-// Strava integration
+// Strava integration (legacy — Strava's API now requires a subscription)
 app.use("/strava", stravaOauthRouter);
 app.use("/strava/webhook", stravaWebhookRouter);
+
+// Garmin activity sync (via intervals.icu)
+app.use("/garmin", garminRouter);
 
 app.use(errorHandler);
 
@@ -42,13 +46,14 @@ app.listen(PORT, () => {
   startReminderScheduler();
   startMobilityReminderScheduler();
 
-  // Poll Strava every 10 minutes to catch activities the webhook might miss
-  const STRAVA_POLL_MS = 5 * 60 * 1000;
+  // Poll intervals.icu every 5 minutes — Garmin pushes activities there
+  // automatically, and there is no webhook on the free API
+  const GARMIN_POLL_MS = 5 * 60 * 1000;
   setInterval(async () => {
     try {
-      await syncRecentStravaActivities(5);
+      await syncRecentGarminActivities(5);
     } catch {
-      // Silently ignore — token may not be connected yet
+      // Silently ignore — API key may not be configured yet
     }
-  }, STRAVA_POLL_MS);
+  }, GARMIN_POLL_MS);
 });
