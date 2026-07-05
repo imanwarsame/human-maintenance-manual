@@ -9,7 +9,7 @@ import {
   deleteActivitiesForDateRange,
   updateActivity,
 } from '../../db/queries/activities.js';
-import { syncRecentStravaActivities } from '../../strava/sync.js';
+import { syncRecentGarminActivities } from '../../garmin/sync.js';
 import { getExerciseWeights } from '../../db/queries/exerciseWeights.js';
 
 const ExerciseSchema = z.object({
@@ -226,11 +226,11 @@ export function registerActivityTools(server: McpServer): void {
   );
 
   server.tool(
-    'sync_strava',
-    'Pull recent Strava activities into the app immediately. Call this when the user says activities are missing.',
+    'sync_garmin',
+    'Pull recent Garmin activities (synced via intervals.icu) into the app immediately. Call this when the user says activities are missing.',
     { days: z.number().int().positive().optional().describe('Days back to sync (default 2)') },
     async ({ days }) => {
-      const count = await syncRecentStravaActivities(days ?? 2);
+      const count = await syncRecentGarminActivities(days ?? 2);
       return { content: [{ type: 'text', text: JSON.stringify({ synced: count }) }] };
     }
   );

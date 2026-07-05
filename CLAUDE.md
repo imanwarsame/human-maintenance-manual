@@ -41,13 +41,14 @@ frontend/ (React/Vite)  ──JWT──▶  backend/ (Express + MCP)  ──▶ 
 
 Single Node.js process running Express + MCP server together.
 
-- `index.ts` — app entry point, mounts routes at `/api/*`, `/mcp`, `/strava/*`
+- `index.ts` — app entry point, mounts routes at `/api/*`, `/mcp`, `/garmin/*`, `/strava/*`
 - `api/` — REST handlers: `activities`, `coaching`, `hydration`, `meals`, `planContext`, `today`, `week`
 - `db/queries/` — all Supabase query functions (never query from route handlers directly)
 - `mcp/server.ts` — MCP server with 14 tools across 6 modules (summary, hydration, activity, meals, coaching, planContext)
 - `mcp/auth.ts` — bearer token middleware for MCP endpoints
 - `middleware/` — `errorHandler`, `auth` (JWT verification for REST routes)
-- `strava/` — OAuth flow, webhook receiver, Garmin → Strava → app sync
+- `garmin/` — Garmin → intervals.icu → app activity sync (5-min polling + on-demand sync endpoints)
+- `strava/` — legacy OAuth flow and webhook receiver (Strava's API now requires a paid subscription)
 
 ### Database (Supabase)
 

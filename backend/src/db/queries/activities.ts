@@ -184,12 +184,15 @@ export async function getActivityById(id: string): Promise<Activity | null> {
   return data ?? null;
 }
 
-export async function getActivityByExternalId(externalId: string): Promise<Activity | null> {
+export async function getActivityByExternalId(
+  externalId: string,
+  source: ActivitySource = 'strava',
+): Promise<Activity | null> {
   const { data, error } = await supabase
     .from('activities')
     .select('*')
     .eq('external_id', externalId)
-    .eq('source', 'strava')
+    .eq('source', source)
     .maybeSingle();
   if (error) throw error;
   return data ?? null;
