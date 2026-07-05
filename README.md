@@ -183,6 +183,8 @@ New activities appear within ~5 minutes of your watch syncing (backend polls int
 
 Activities previously synced from Strava are kept; the Garmin sync skips any day/type that already has a Strava-sourced entry, so the backfill won't create duplicates.
 
+For runs of 5 km or more, the sync fetches the activity's GPS streams from intervals.icu and computes the fastest contiguous 5 km — stored as a Strava-compatible `best_efforts` entry so 5K PB tracking keeps working.
+
 Manual activity entry via the Activity screen is always available without any sync configured.
 
 ---
