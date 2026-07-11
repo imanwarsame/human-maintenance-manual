@@ -6,6 +6,7 @@ import {
   type ExerciseHistory,
   type RunTimeEntry,
   type BodyWeightEntry,
+  type WellnessEntry,
 } from '../hooks/useProgress.ts';
 
 function useInView(threshold = 0.1) {
@@ -142,7 +143,15 @@ function LineChart({
   );
 }
 
-function MiniLineChart({ data, color }: { data: { x: string; y: number }[]; color: string }) {
+function MiniLineChart({
+  data,
+  color,
+  formatY = (v) => v.toFixed(1),
+}: {
+  data: { x: string; y: number }[];
+  color: string;
+  formatY?: (v: number) => string;
+}) {
   if (data.length < 2) return <p className="text-xs text-ink-tertiary py-2">Not enough data yet</p>;
   const W = 400, H = 70;
   const PAD = { top: 6, right: 10, bottom: 18, left: 36 };
@@ -162,8 +171,8 @@ function MiniLineChart({ data, color }: { data: { x: string; y: number }[]; colo
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
       <line x1={PAD.left} x2={W - PAD.right} y1={toY(minY)} y2={toY(minY)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
       <line x1={PAD.left} x2={W - PAD.right} y1={toY(maxY)} y2={toY(maxY)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-      <text x={PAD.left - 4} y={toY(minY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{minY.toFixed(1)}</text>
-      <text x={PAD.left - 4} y={toY(maxY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{maxY.toFixed(1)}</text>
+      <text x={PAD.left - 4} y={toY(minY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{formatY(minY)}</text>
+      <text x={PAD.left - 4} y={toY(maxY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{formatY(maxY)}</text>
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       {data.map((d, i) => (
         <circle key={i} cx={toX(i)} cy={toY(d.y)} r="2" fill={color} />
@@ -448,6 +457,89 @@ function BodyMetricsSection({ data }: { data: BodyWeightEntry[] }) {
   );
 }
 
+interface WellnessMetric {
+  key: keyof Pick<WellnessEntry, 'sleep_duration_mins' | 'sleep_score' | 'resting_hr' | 'hrv' | 'vo2_max' | 'steps'>;
+  label: string;
+  color: string;
+  toValue: (raw: number) => number;
+  formatY: (v: number) => string;
+  formatLatest: (v: number) => string;
+}
+
+const WELLNESS_METRICS: WellnessMetric[] = [
+  {
+    key: 'sleep_duration_mins',
+    label: 'Sleep',
+    color: '#3b82f6',
+    toValue: (v) => Math.round((v / 60) * 10) / 10,
+    formatY: (v) => `${v.toFixed(1)}h`,
+    formatLatest: (v) => `${v.toFixed(1)}h`,
+  },
+  {
+    key: 'sleep_score',
+    label: 'Sleep score',
+    color: '#8b5cf6',
+    toValue: (v) => v,
+    formatY: (v) => v.toFixed(0),
+    formatLatest: (v) => v.toFixed(0),
+  },
+  {
+    key: 'resting_hr',
+    label: 'Resting HR',
+    color: '#ef4444',
+    toValue: (v) => v,
+    formatY: (v) => v.toFixed(0),
+    formatLatest: (v) => `${v.toFixed(0)} bpm`,
+  },
+  {
+    key: 'hrv',
+    label: 'HRV',
+    color: '#22c55e',
+    toValue: (v) => v,
+    formatY: (v) => v.toFixed(0),
+    formatLatest: (v) => `${v.toFixed(0)} ms`,
+  },
+  {
+    key: 'vo2_max',
+    label: 'VO2 max',
+    color: '#06b6d4',
+    toValue: (v) => v,
+    formatY: (v) => v.toFixed(1),
+    formatLatest: (v) => v.toFixed(1),
+  },
+  {
+    key: 'steps',
+    label: 'Steps',
+    color: '#eab308',
+    toValue: (v) => v,
+    formatY: (v) => Math.round(v).toLocaleString(),
+    formatLatest: (v) => Math.round(v).toLocaleString(),
+  },
+];
+
+function WellnessSection({ data }: { data: WellnessEntry[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {WELLNESS_METRICS.map((metric) => {
+        const points = data
+          .filter((d) => d[metric.key] != null)
+          .map((d) => ({ x: formatDate(d.date), y: metric.toValue(d[metric.key] as number) }));
+        if (points.length === 0) return null;
+        const latest = points[points.length - 1];
+        return (
+          <div key={metric.key}>
+            <div className="flex items-baseline justify-between mb-1">
+              <p className="text-xs text-ink-tertiary">{metric.label}</p>
+              <p className="text-sm font-medium text-ink-secondary num">{metric.formatLatest(latest.y)}</p>
+            </div>
+            <MiniLineChart data={points} color={metric.color} formatY={metric.formatY} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   const [ref, inView] = useInView();
   return (
@@ -514,6 +606,12 @@ export default function Progress() {
       <SectionCard title="Body Weight">
         <BodyMetricsSection data={data.bodyWeight} />
       </SectionCard>
+
+      {data.wellness.length > 0 && (
+        <SectionCard title="Wellness">
+          <WellnessSection data={data.wellness} />
+        </SectionCard>
+      )}
     </div>
   );
 }

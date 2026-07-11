@@ -10,6 +10,7 @@ import planContextRouter from './planContext.js';
 import exerciseWeightsRouter from './exerciseWeights.js';
 import progressRouter from './progress.js';
 import bodyWeightRouter from './bodyWeight.js';
+import wellnessRouter from './wellness.js';
 import pushRouter from './push.js';
 
 const router = Router();
@@ -26,6 +27,7 @@ router.use('/plan-context', planContextRouter);
 router.use('/exercise-weights', exerciseWeightsRouter);
 router.use('/progress', progressRouter);
 router.use('/body-weight', bodyWeightRouter);
+router.use('/wellness', wellnessRouter);
 router.use('/push', pushRouter);
 
 export default router;

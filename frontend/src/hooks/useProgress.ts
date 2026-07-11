@@ -31,11 +31,22 @@ export interface BodyWeightEntry {
   muscle_mass_kg: number | null;
 }
 
+export interface WellnessEntry {
+  date: string;
+  sleep_duration_mins: number | null;
+  sleep_score: number | null;
+  resting_hr: number | null;
+  hrv: number | null;
+  vo2_max: number | null;
+  steps: number | null;
+}
+
 export interface ProgressData {
   weeklyVolume: VolumeByMuscle[];
   exerciseHistory: ExerciseHistory[];
   runTimes: RunTimeEntry[];
   bodyWeight: BodyWeightEntry[];
+  wellness: WellnessEntry[];
 }
 
 export function useProgress() {
