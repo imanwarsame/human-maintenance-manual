@@ -8,6 +8,7 @@ import stravaWebhookRouter from "./strava/webhook.js";
 import garminRouter from "./garmin/routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { syncRecentGarminActivities } from "./garmin/sync.js";
+import { ingestWellness } from "./garmin/wellness.js";
 import {
   startReminderScheduler,
   startMobilityReminderScheduler,
@@ -52,6 +53,11 @@ app.listen(PORT, () => {
   setInterval(async () => {
     try {
       await syncRecentGarminActivities(5);
+    } catch {
+      // Silently ignore — API key may not be configured yet
+    }
+    try {
+      await ingestWellness(5);
     } catch {
       // Silently ignore — API key may not be configured yet
     }

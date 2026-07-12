@@ -80,7 +80,7 @@ SUPABASE_SERVICE_KEY=your-service-role-key   # Never expose this to the frontend
 # MCP auth — Claude uses this bearer token to connect
 MCP_SECRET=generate-a-long-random-string-here
 
-# Garmin activity sync via intervals.icu (optional — skip if not syncing activities)
+# Garmin activity + wellness sync via intervals.icu (optional — skip if not syncing)
 INTERVALS_ICU_API_KEY=your-intervals-icu-api-key   # intervals.icu → Settings → Developer Settings
 INTERVALS_ICU_ATHLETE_ID=i123456                   # Optional — defaults to the key's owner
 
@@ -162,9 +162,9 @@ GET https://your-backend.railway.app/health
 
 ---
 
-## 5. Garmin activity sync (via intervals.icu)
+## 5. Garmin activity & wellness sync (via intervals.icu)
 
-Activity sync flow: **Garmin → intervals.icu** (via Garmin's built-in integration) **→ this app**, which polls the intervals.icu API every 5 minutes.
+Activity and wellness sync flow: **Garmin → intervals.icu** (via Garmin's built-in integration) **→ this app**, which polls the intervals.icu API every 5 minutes.
 
 > **Why intervals.icu?** Strava's API is now restricted to paid subscribers, Garmin's official Connect Developer Program is closed to new applicants, and Garmin blocks automated password logins to Garmin Connect. [intervals.icu](https://intervals.icu) is a free training platform that is an approved Garmin partner — Garmin Connect pushes every activity to it automatically, and it exposes a free, stable REST API.
 
@@ -186,6 +186,12 @@ Activities previously synced from Strava are kept; the Garmin sync skips any day
 For runs of 5 km or more, the sync fetches the activity's GPS streams from intervals.icu and computes the fastest contiguous 5 km — stored as a Strava-compatible `best_efforts` entry so 5K PB tracking keeps working.
 
 Manual activity entry via the Activity screen is always available without any sync configured.
+
+### Wellness data
+
+The same credentials also pull daily wellness data from intervals.icu — sleep duration, sleep score, resting heart rate, HRV, VO2 max, and steps — shown on the Progress screen. This data is sync-only (no manual entry form): if a day is wrong or missing, it's corrected by re-syncing, not by hand-editing. Trigger an immediate sync with `POST /garmin/sync-wellness` or the `sync_wellness` MCP tool; `POST /garmin/sync-all` backfills wellness alongside activities.
+
+Weight and body fat reported by intervals.icu also flow into the existing `body_weight_logs` table (used by the Body Weight section), but only on days without a manual entry — a manual log or edit via the Progress screen always takes precedence and is never overwritten by sync. Muscle mass isn't reported by intervals.icu and stays manual-only.
 
 ---
 

@@ -6,6 +6,7 @@ export interface BodyWeightLog {
   weight_kg: number;
   body_fat_pct: number | null;
   muscle_mass_kg: number | null;
+  source: string;
   created_at: string;
 }
 
@@ -21,13 +22,24 @@ export async function getBodyWeightLogs(from?: string, to?: string): Promise<Bod
   return data ?? [];
 }
 
+export async function getBodyWeightLogForDate(date: string): Promise<BodyWeightLog | null> {
+  const { data, error } = await supabase
+    .from('body_weight_logs')
+    .select('*')
+    .eq('date', date)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function upsertBodyWeight(
   date: string,
   weight_kg: number,
   body_fat_pct?: number | null,
   muscle_mass_kg?: number | null,
+  source: string = 'manual',
 ): Promise<BodyWeightLog> {
-  const payload: Record<string, unknown> = { date, weight_kg };
+  const payload: Record<string, unknown> = { date, weight_kg, source };
   if (body_fat_pct !== undefined) payload.body_fat_pct = body_fat_pct;
   if (muscle_mass_kg !== undefined) payload.muscle_mass_kg = muscle_mass_kg;
   const { data, error } = await supabase

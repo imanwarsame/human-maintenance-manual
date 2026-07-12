@@ -17,7 +17,7 @@ import {
 } from "../db/queries/activities.js";
 import { upsertExerciseWeights } from "../db/queries/exerciseWeights.js";
 
-const INTERVALS_BASE_URL = "https://intervals.icu/api/v1";
+export const INTERVALS_BASE_URL = "https://intervals.icu/api/v1";
 
 interface IntervalsActivity {
   id: string | number;
@@ -30,7 +30,7 @@ interface IntervalsActivity {
   [key: string]: unknown;
 }
 
-function intervalsHeaders(): Record<string, string> {
+export function intervalsHeaders(): Record<string, string> {
   const key = process.env.INTERVALS_ICU_API_KEY;
   if (!key)
     throw new Error(
@@ -41,7 +41,7 @@ function intervalsHeaders(): Record<string, string> {
 }
 
 // intervals.icu treats athlete id "0" as "the athlete who owns the API key"
-function athleteId(): string {
+export function athleteId(): string {
   return process.env.INTERVALS_ICU_ATHLETE_ID ?? "0";
 }
 
@@ -255,7 +255,7 @@ async function fetchActivities(
   return (await resp.json()) as IntervalsActivity[];
 }
 
-function isoDate(msOffset: number): string {
+export function isoDate(msOffset: number): string {
   return new Date(Date.now() + msOffset).toISOString().slice(0, 10);
 }
 

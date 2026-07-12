@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getWeeklyVolumeByMuscleGroup, getExerciseHistory, getRunTimes } from '../db/queries/progress.js';
 import { getBodyWeightLogs } from '../db/queries/bodyWeight.js';
+import { getWellnessLogs } from '../db/queries/wellness.js';
 
 const router = Router();
 
@@ -23,14 +24,15 @@ router.get('/', async (_req, res, next) => {
     sixMonthsAgo.setMonth(now.getMonth() - 6);
     const sixMonthsAgoStr = sixMonthsAgo.toISOString().slice(0, 10);
 
-    const [weeklyVolume, exerciseHistory, runTimes, bodyWeight] = await Promise.all([
+    const [weeklyVolume, exerciseHistory, runTimes, bodyWeight, wellness] = await Promise.all([
       getWeeklyVolumeByMuscleGroup(weekStartStr, today),
       getExerciseHistory(ninetyDaysAgoStr, today),
       getRunTimes(sixMonthsAgoStr, today),
       getBodyWeightLogs(sixMonthsAgoStr, today),
+      getWellnessLogs(sixMonthsAgoStr, today),
     ]);
 
-    res.json({ weeklyVolume, exerciseHistory, runTimes, bodyWeight });
+    res.json({ weeklyVolume, exerciseHistory, runTimes, bodyWeight, wellness });
   } catch (err) {
     next(err);
   }
