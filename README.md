@@ -1,22 +1,35 @@
 # Human Maintenance Manual
 
-A single-user health and performance tracking app. Claude acts as the intelligence layer — writing meal plans, planning workouts, and generating coaching notes via an MCP server. The app is a logging UI and data store.
+A single-user health and performance tracking app. Claude acts as the intelligence layer — writing meal plans, planning workouts, tracking injuries/illness, and generating coaching notes via an MCP server. The app itself is deliberately "dumb": a logging UI and a data store, with no built-in planning logic of its own.
 
 Built for one person, but designed so anyone can fork it and adapt it to their own body, goals, and routines.
+
+### Purpose
+
+- **You log, sync, or ask Claude to write** — hydration, workouts, meals, body weight/composition, and illness/injury incidents can all be entered by hand in the UI, synced automatically from Garmin, or written on your behalf by Claude through MCP tools.
+- **Claude is the coach** — it reads your history and profile (via MCP tools like `get_week`, `get_plan_context`, `get_exercise_weights`) and writes meal plans, workout plans, and coaching notes back into the database. The app just renders whatever Claude (or you) put there.
+- **The app has no opinions** — there's no built-in nutrition or training algorithm. All "intelligence" — macro targets, progressive overload, meal variety, injury-aware programming — comes from Claude, driven by prompts you (or a scheduler) send it.
+
+### Scope
+
+- **Single-user by design.** There's no multi-tenancy, no user table, no per-user rows — one Supabase project is one person's data. See [Adapting for yourself](#12-adapting-for-yourself) for what multi-user support would take.
+- **Not a general fitness platform.** No social features, no coaching marketplace, no third-party athlete data beyond what Garmin/intervals.icu provides.
+- **Auth is minimal.** Magic-link login for the single user; Claude/MCP clients authenticate with a static bearer token, not per-user OAuth.
 
 ## Architecture
 
 ```
 Frontend (React/Vite PWA)  ──REST──▶  Backend (Express + MCP)  ──▶  Supabase (Postgres)
                                               ▲
-                                       Claude (via MCP/SSE)
+                                       Claude (via MCP/HTTP)
 ```
 
-- **Frontend**: React 19, mobile-responsive PWA, 4 screens (Home, Hydration, Activity, Nutrition)
-- **Backend**: Single Node.js/Express process — REST API on `/api`, MCP server on `/mcp`
+- **Frontend**: React 19, mobile-responsive PWA, 6 screens (Home, Hydration, Activity, Nutrition, Progress, Settings)
+- **Backend**: Single Node.js/Express process — REST API on `/api`, MCP server on `/mcp`, Garmin sync endpoints on `/garmin`
 - **Database**: Supabase (Postgres). Service key lives only in the backend.
-- **Auth**: Supabase magic link. Claude connects via MCP bearer token only.
-- **Activity sync**: Garmin → intervals.icu (via Garmin's built-in integration) → this app via the intervals.icu API
+- **Auth**: Supabase magic link for the frontend. Claude connects via MCP bearer token only.
+- **Activity & wellness sync**: Garmin → intervals.icu (via Garmin's built-in integration) → this app via the intervals.icu API
+- **Push notifications**: Web push (VAPID) for hydration and mobility reminders, configured on the Settings screen
 
 ---
 
@@ -51,6 +64,10 @@ supabase/migrations/005_remove_deviations.sql
 supabase/migrations/006_exercise_weights.sql
 supabase/migrations/007_body_weight.sql
 supabase/migrations/008_push_subscriptions.sql
+supabase/migrations/009_body_composition.sql
+supabase/migrations/010_health_incidents.sql
+supabase/migrations/011_wellness.sql
+supabase/migrations/012_body_weight_source.sql
 ```
 
 Paste each file's contents into the SQL editor and click Run. Order matters — later migrations depend on earlier ones.
@@ -158,7 +175,7 @@ GET https://your-backend.railway.app/health
 ### Alternative platforms
 
 - **Frontend**: Vercel or Netlify both work. Set `VITE_*` env vars in their dashboards.
-- **Backend**: Fly.io, Render, or any platform that runs Node.js. The backend needs a persistent process (not serverless) because the MCP server is stateful SSE.
+- **Backend**: Fly.io, Render, or any platform that runs Node.js. The backend needs a persistent process (not serverless) since it also runs a 5-minute polling loop for Garmin/wellness sync and scheduled reminder jobs.
 
 ---
 
@@ -197,7 +214,7 @@ Weight and body fat reported by intervals.icu also flow into the existing `body_
 
 ## 6. Connecting Claude via MCP
 
-Claude connects to the backend MCP server over SSE. Set this up in your Claude Desktop config.
+Claude connects to the backend MCP server over the streamable HTTP transport (a single stateless `/mcp` endpoint — no session persistence). Set this up in your Claude Desktop config.
 
 ### Claude Desktop
 
@@ -226,7 +243,7 @@ In Claude.ai → Settings → Integrations, add a new integration with the same 
 
 ### Other LLMs
 
-Any LLM that supports MCP over HTTP/SSE can connect using the same URL and bearer token. The MCP spec is model-agnostic — swap Claude for any compatible client.
+Any LLM client that supports MCP over streamable HTTP can connect using the same URL and bearer token. The MCP spec is model-agnostic — swap Claude for any compatible client.
 
 ---
 
@@ -373,7 +390,7 @@ If macro targets or training structure need adjusting based on the trend, use up
 
 ## 10. MCP tools reference
 
-The backend exposes 23 tools to Claude across 6 modules.
+The backend exposes 35 tools to Claude across 9 modules (`backend/src/mcp/tools/`).
 
 ### Summary
 | Tool | Description |
@@ -381,6 +398,7 @@ The backend exposes 23 tools to Claude across 6 modules.
 | `get_today` | Today's hydration total, planned meals + completion status, activities, coaching note |
 | `get_week` | Last 7 days: hydration, meals, activities, coaching notes |
 | `get_month` | Last 30 days rolled up by week |
+| `get_period_data` | Meal macros, body composition, and activity data across any custom date range |
 
 ### Hydration
 | Tool | Description |
@@ -392,19 +410,19 @@ The backend exposes 23 tools to Claude across 6 modules.
 | Tool | Description |
 |------|-------------|
 | `log_activity` | Log a manual activity session |
-| `plan_workout` | Write a planned workout for a date |
+| `plan_workout` | Write a planned workout (gym exercises or a run plan) for a date |
 | `update_activity` | Update an existing activity record |
 | `delete_activity` | Delete an activity |
 | `replace_day_activities` | Replace all activities for a given day |
-| `clear_activities` | Clear all activities for a date |
+| `clear_activities` | Clear all activities for a date or date range |
 | `get_activities` | Return recent activity sessions |
-| `get_exercise_weights` | Return current working weights |
-| `sync_garmin` | Trigger a manual Garmin sync (via intervals.icu) |
+| `get_exercise_weights` | Return current working weights per exercise |
+| `sync_garmin` | Trigger a manual Garmin activity sync (via intervals.icu) |
 
 ### Meals
 | Tool | Description |
 |------|-------------|
-| `write_meal_plan` | Write one or more planned meals |
+| `write_meal_plan` | Write one or more planned meals (additive) |
 | `update_meal_plan` | Update an existing planned meal |
 | `mark_meal_eaten` | Mark a planned meal as eaten |
 | `delete_meal` | Delete a meal plan entry |
@@ -422,6 +440,29 @@ The backend exposes 23 tools to Claude across 6 modules.
 | `get_plan_context` | Return all plan context entries (profile, targets, schedule) |
 | `update_plan_context` | Upsert a plan context entry by key |
 
+### Body composition
+| Tool | Description |
+|------|-------------|
+| `get_body_composition` | Retrieve weight, body fat %, and muscle mass logs over a date range |
+| `log_body_composition` | Log or update body composition for a date |
+
+### Health incidents (illness/injury)
+| Tool | Description |
+|------|-------------|
+| `log_incident` | Log a new illness or injury so it can inform coaching, meal, and workout plans |
+| `get_incidents` | Retrieve past and current incidents |
+| `get_incident` | Get a single incident with its logged progress updates |
+| `update_incident` | Update fields on an existing incident |
+| `resolve_incident` | Mark an incident as resolved |
+| `delete_incident` | Delete an incident and its progress updates |
+| `add_incident_update` | Add a dated recovery progress note to an incident |
+
+### Wellness
+| Tool | Description |
+|------|-------------|
+| `get_wellness` | Retrieve daily sleep, resting HR, HRV, VO2 max, and steps synced from intervals.icu |
+| `sync_wellness` | Trigger a manual wellness sync (via intervals.icu) |
+
 ---
 
 ## 11. Data schema
@@ -437,8 +478,11 @@ Tables created by the migrations:
 | `coaching_notes` | Daily and weekly notes from Claude |
 | `plan_context` | Key/value store for profile, targets, training schedule, Strava tokens |
 | `exercise_weights` | Current working weights per exercise |
-| `body_weight_logs` | Daily body weight entries |
+| `body_weight_logs` | Daily weight, body fat %, and muscle mass. `source` column marks `manual` vs synced entries. |
 | `push_subscriptions` | Web push subscription endpoints for notifications |
+| `health_incidents` | Illness/injury records (type, severity, status, dates, symptoms, treatment) |
+| `health_incident_updates` | Dated recovery progress notes attached to a `health_incidents` row |
+| `wellness_logs` | Daily sleep, resting HR, HRV, VO2 max, and steps synced from intervals.icu |
 
 Full column definitions are in `supabase/migrations/002_tables.sql` and subsequent migration files.
 
