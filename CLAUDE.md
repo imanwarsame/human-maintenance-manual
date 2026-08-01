@@ -42,9 +42,9 @@ frontend/ (React/Vite)  ──JWT──▶  backend/ (Express + MCP)  ──▶ 
 Single Node.js process running Express + MCP server together.
 
 - `index.ts` — app entry point, mounts routes at `/api/*`, `/mcp`, `/garmin/*`, `/strava/*`
-- `api/` — REST handlers: `activities`, `bodyWeight`, `coaching`, `exerciseWeights`, `hydration`, `meals`, `planContext`, `progress`, `push`, `today`, `week`, `wellness`
+- `api/` — REST handlers: `activities`, `bodyWeight`, `coaching`, `exerciseWeights`, `hydration`, `meals`, `planContext`, `progress`, `push`, `today`, `week`, `wellness`, `trainingLoad`, `readiness`, `correlations`
 - `db/queries/` — all Supabase query functions (never query from route handlers directly)
-- `mcp/server.ts` — MCP server (stateless streamable HTTP transport at `/mcp`) with 35 tools across 9 modules: `summaryTools`, `hydrationTools`, `activityTools`, `mealTools`, `coachingTools`, `planContextTools`, `bodyCompositionTools`, `healthIncidentTools`, `wellnessTools`
+- `mcp/server.ts` — MCP server (stateless streamable HTTP transport at `/mcp`) with 40 tools across 13 modules: `summaryTools`, `hydrationTools`, `activityTools`, `mealTools`, `coachingTools`, `planContextTools`, `bodyCompositionTools`, `healthIncidentTools`, `wellnessTools`, `trainingLoadTools`, `readinessTools`, `digestTools`, `correlationTools`
 - `mcp/auth.ts` — bearer token middleware for MCP endpoints
 - `middleware/` — `errorHandler`, `auth` (JWT verification for REST routes)
 - `garmin/` — Garmin → intervals.icu → app activity + wellness sync (5-min polling + on-demand sync endpoints)
@@ -66,6 +66,7 @@ Migrations in `supabase/migrations/`, applied in order — later ones depend on 
 10. `010_health_incidents.sql` — `health_incidents`, `health_incident_updates` tables
 11. `011_wellness.sql` — `wellness_logs` table (synced from intervals.icu)
 12. `012_body_weight_source.sql` — adds `source` column to `body_weight_logs`
+13. `013_session_rpe.sql` — adds optional `session_rpe` override to `activities`, used by training-load (ACWR) computation
 
 Frontend uses the **anon key** (auth-gated). Backend uses the **service role key** (never exposed to frontend).
 

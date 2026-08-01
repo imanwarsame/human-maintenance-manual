@@ -386,6 +386,28 @@ Summarise:
 If macro targets or training structure need adjusting based on the trend, use update_plan_context to update them. Then write a weekly coaching note with your findings and any changes made.
 ```
 
+### Sunday evening — "State of You" digest
+
+Claude writes a narrative weekly readout in one tool call, using training load (ACWR), readiness, nutrition, hydration, body composition, and incident data — comparing this week against the prior week.
+
+**Prompt:**
+```
+Call get_weekly_digest_data with from = last Monday and to = today.
+
+Write a 250-350 word narrative weekly readout covering: training load and ACWR
+trend vs the prior week; readiness trend and what drove it; nutrition
+adherence and macro gaps; body-composition delta; open or newly resolved
+health incidents; and one concrete focus for the week ahead. Lead with what
+changed, not with numbers.
+
+Do not invent data — if a field is null or data_quality.confidence is "low",
+say so plainly rather than narrating noise as trend.
+
+Then call write_coaching_note with note_type: "weekly" and today's date.
+```
+
+To automate this, create a Routine (a scheduled trigger that fires the prompt above into a fresh Claude session) targeting Sunday evening in your local timezone — for example `0 16 * * 0` UTC for 18:00 CEST. Re-check the cron expression at DST changeovers, since it's stored in UTC. The Routine needs your deployed backend's `/mcp` URL and `MCP_SECRET` to actually reach your data (see §6).
+
 ---
 
 ## 10. MCP tools reference
@@ -462,6 +484,22 @@ The backend exposes 35 tools to Claude across 9 modules (`backend/src/mcp/tools/
 |------|-------------|
 | `get_wellness` | Retrieve daily sleep, resting HR, HRV, VO2 max, and steps synced from intervals.icu |
 | `sync_wellness` | Trigger a manual wellness sync (via intervals.icu) |
+
+### Training load
+| Tool | Description |
+|------|-------------|
+| `get_training_load` | ACWR (acute:chronic workload ratio), injury-risk band, monotony/strain, and projected load for a date |
+| `get_load_series` | Zero-filled daily training load series for a date range |
+
+### Readiness
+| Tool | Description |
+|------|-------------|
+| `get_readiness` | Composite 0-100 daily readiness score from HRV, resting HR, sleep, and ACWR vs the user's own rolling baseline, adjusted for open health incidents |
+
+### Weekly digest
+| Tool | Description |
+|------|-------------|
+| `get_weekly_digest_data` | Everything needed to write a weekly "State of You" readout in one call: training/readiness trend vs the prior week, wellness, nutrition, hydration, body comp, incidents, and prior notes |
 
 ---
 

@@ -42,6 +42,7 @@ export interface Activity {
   notes: string | null;
   external_id: string | null;
   is_planned: boolean;
+  session_rpe: number | null;
 }
 
 export interface CreateActivityInput {
@@ -55,6 +56,7 @@ export interface CreateActivityInput {
   notes?: string;
   external_id?: string;
   is_planned?: boolean;
+  session_rpe?: number;
 }
 
 export async function logActivity(input: CreateActivityInput): Promise<Activity> {
@@ -182,6 +184,17 @@ export async function getActivityById(id: string): Promise<Activity | null> {
     .maybeSingle();
   if (error) throw error;
   return data ?? null;
+}
+
+export async function getEarliestActivityDate(): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('date')
+    .order('date', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.date ?? null;
 }
 
 export async function getActivityByExternalId(
