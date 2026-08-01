@@ -43,6 +43,27 @@ Frontend (React/Vite PWA)  ──REST──▶  Backend (Express + MCP)  ──�
 
 ---
 
+## Quick setup
+
+The fastest way to stand up your own instance:
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Open **Project Settings → API** and **Project Settings → Database** (you'll need the URL, anon key, service role key, and connection string from these two pages).
+3. Clone this repo, then run:
+   ```bash
+   npm install
+   npm run setup
+   ```
+   The wizard prompts for those 4 Supabase values, then automatically applies all 13 database migrations, generates `MCP_SECRET`, `STRAVA_VERIFY_TOKEN`, and a VAPID keypair for you, and writes `backend/.env` and `frontend/.env`. Garmin/intervals.icu and Strava are both optional — you can skip them and add the values later.
+4. In the Supabase dashboard, under **Authentication → Providers**, confirm Email is enabled, and under **Authentication → URL Configuration**, add your frontend URL to Redirect URLs.
+5. Run locally with `npm run dev:backend` / `npm run dev:frontend`, or deploy to Railway — see [§4 Deploying on Railway](#4-deploying-on-railway).
+
+Each instance is single-tenant — there's no multi-user support (see [§12](#12-adapting-for-yourself)), so if multiple people want to use this, each person needs their own Supabase project and their own deployment, not a shared one.
+
+The sections below are the manual, step-by-step version of the same process (what the wizard automates), useful if you want to understand or do it by hand.
+
+---
+
 ## 1. Supabase setup
 
 ### Create the project
@@ -52,7 +73,7 @@ Frontend (React/Vite PWA)  ──REST──▶  Backend (Express + MCP)  ──�
 
 ### Run the migrations
 
-Open the SQL Editor in your Supabase dashboard and run each migration file in this exact order:
+`npm run setup` (see [Quick setup](#quick-setup)) applies all of these automatically against your Database connection string. To do it by hand instead, open the SQL Editor in your Supabase dashboard and run each migration file in this exact order:
 
 ```
 supabase/migrations/001_enums.sql
@@ -124,8 +145,11 @@ npx web-push generate-vapid-keys
 ```env
 VITE_API_URL=http://localhost:3000           # Backend URL
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key        # Safe to expose — RLS enforced
+VITE_SUPABASE_ANON_KEY=your-anon-key         # Safe to expose — RLS enforced
+VITE_VAPID_PUBLIC_KEY=your-vapid-public-key  # Same value as the backend's VAPID_PUBLIC_KEY — required for push notifications
 ```
+
+`backend/.env.example` and `frontend/.env.example` mirror these blocks and can be copied directly (`cp backend/.env.example backend/.env`) if you're filling values in by hand instead of using `npm run setup`.
 
 ---
 

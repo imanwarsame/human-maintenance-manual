@@ -43,6 +43,11 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`MCP server: http://localhost:${PORT}/mcp`);
+  if (!process.env.MCP_SECRET) {
+    console.warn(
+      "⚠️  MCP_SECRET is not set — /mcp is UNAUTHENTICATED and reachable by anyone who finds the URL."
+    );
+  }
 
   startReminderScheduler();
   startMobilityReminderScheduler();

@@ -6,10 +6,14 @@
     "backend"
   ],
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
     "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
     "build:frontend": "npm run build --workspace=frontend",
     "build:backend": "npm run build --workspace=backend"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
   }
 }
