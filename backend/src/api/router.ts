@@ -12,6 +12,9 @@ import progressRouter from './progress.js';
 import bodyWeightRouter from './bodyWeight.js';
 import wellnessRouter from './wellness.js';
 import pushRouter from './push.js';
+import trainingLoadRouter from './trainingLoad.js';
+import readinessRouter from './readiness.js';
+import correlationsRouter from './correlations.js';
 
 const router = Router();
 
@@ -29,5 +32,8 @@ router.use('/progress', progressRouter);
 router.use('/body-weight', bodyWeightRouter);
 router.use('/wellness', wellnessRouter);
 router.use('/push', pushRouter);
+router.use('/training-load', trainingLoadRouter);
+router.use('/readiness', readinessRouter);
+router.use('/correlations', correlationsRouter);
 
 export default router;

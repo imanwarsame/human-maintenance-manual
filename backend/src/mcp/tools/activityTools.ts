@@ -11,6 +11,7 @@ import {
 } from '../../db/queries/activities.js';
 import { syncRecentGarminActivities } from '../../garmin/sync.js';
 import { getExerciseWeights } from '../../db/queries/exerciseWeights.js';
+import { getReadiness } from '../../db/queries/readiness.js';
 
 const ExerciseSchema = z.object({
   name: z.string().describe('Exercise name'),
@@ -42,15 +43,81 @@ function roundToPlate(kg: number): number {
   return Math.round(kg / 2.5) * 2.5;
 }
 
+interface WeightModifier {
+  hold: boolean;
+  deload: boolean;
+}
+
+const NO_MODIFIER: WeightModifier = { hold: false, deload: false };
+
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function tomorrowStr(): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// Modulates progressive-overload suggestions based on the day's readiness score / ACWR.
+// Only meaningful for today/tomorrow — readiness for a day planned a week out is not knowable yet.
+async function computeReadinessModifier(
+  date: string,
+  respect: boolean,
+): Promise<{ modifier: WeightModifier; readiness_adjustment?: Record<string, unknown> }> {
+  if (!respect) return { modifier: NO_MODIFIER };
+  const today = todayStr();
+  const tomorrow = tomorrowStr();
+  if (date !== today && date !== tomorrow) return { modifier: NO_MODIFIER };
+
+  const readiness = await getReadiness(date);
+  const acwrValue = readiness.components.find((c) => c.metric === 'acwr')?.value ?? null;
+
+  const modifier: WeightModifier = { hold: false, deload: false };
+  if (acwrValue != null && acwrValue > 1.5) {
+    modifier.deload = true;
+  } else if (readiness.score != null && readiness.score < 50) {
+    modifier.deload = true;
+  } else if (readiness.score != null && readiness.score < 70) {
+    modifier.hold = true;
+  }
+
+  if (!modifier.hold && !modifier.deload) return { modifier };
+
+  const rationale =
+    modifier.deload && acwrValue != null && acwrValue > 1.5
+      ? `ACWR ${acwrValue.toFixed(2)} exceeds 1.5 — reducing planned weight to manage injury risk.`
+      : modifier.deload
+      ? `Readiness ${readiness.score}/100 (${readiness.band}) — reducing planned weight rather than progressing.`
+      : `Readiness ${readiness.score}/100 (${readiness.band}) — holding current weight rather than progressing.`;
+
+  return {
+    modifier,
+    readiness_adjustment: {
+      score: readiness.score,
+      band: readiness.band,
+      acwr: acwrValue,
+      action: modifier.deload ? 'deload_10pct' : 'hold',
+      rationale,
+    },
+  };
+}
+
 function applyWeightSuggestions(
   exercises: z.infer<typeof ExerciseSchema>[],
   weightMap: Map<string, { weight_kg: number; updated_at: string }>,
+  modifier: WeightModifier = NO_MODIFIER,
 ): z.infer<typeof ExerciseSchema>[] {
   const now = Date.now();
   return exercises.map((ex) => {
     if (ex.weight_kg !== undefined) return ex;
     const record = weightMap.get(ex.name.toLowerCase());
     if (!record) return ex;
+
+    if (modifier.deload) return { ...ex, weight_kg: roundToPlate(record.weight_kg * 0.9) };
+    if (modifier.hold) return { ...ex, weight_kg: record.weight_kg };
+
     const daysSince = (now - new Date(record.updated_at).getTime()) / 86_400_000;
 
     let weight: number;
@@ -86,6 +153,7 @@ export function registerActivityTools(server: McpServer): void {
       distance_km: z.number().positive().optional().describe('Distance in kilometres'),
       avg_hr: z.number().int().positive().optional().describe('Average heart rate'),
       notes: z.string().optional().describe('Free-text notes'),
+      session_rpe: z.number().int().min(1).max(10).optional().describe('Perceived effort 1-10, for training-load calculation when HR data would understate effort (e.g. football, strength)'),
     },
     async (args) => {
       const activity = await logActivity({ ...args, source: 'manual' });
@@ -104,13 +172,17 @@ export function registerActivityTools(server: McpServer): void {
       notes: z.string().optional().describe('Session notes or focus'),
       exercises: z.array(ExerciseSchema).optional().describe('Exercise list for gym sessions'),
       run_plan: RunPlanSchema.optional().describe('Structured run plan with intervals'),
+      respect_readiness: z.boolean().optional().describe('Modulate suggested weights based on the day\'s readiness score and ACWR (default true). Only has an effect when date is today or tomorrow.'),
     },
-    async ({ date, type, duration_mins, distance_km, notes, exercises, run_plan }) => {
+    async ({ date, type, duration_mins, distance_km, notes, exercises, run_plan, respect_readiness }) => {
       let resolvedExercises = exercises;
+      let readinessAdjustment: Record<string, unknown> | undefined;
       if (exercises && exercises.length > 0) {
         const weights = await getExerciseWeights();
         const weightMap = new Map(weights.map((w) => [w.exercise_name.toLowerCase(), w]));
-        resolvedExercises = applyWeightSuggestions(exercises, weightMap);
+        const { modifier, readiness_adjustment } = await computeReadinessModifier(date, respect_readiness ?? true);
+        readinessAdjustment = readiness_adjustment;
+        resolvedExercises = applyWeightSuggestions(exercises, weightMap, modifier);
       }
       const raw_json = (resolvedExercises || run_plan) ? { exercises: resolvedExercises, run_plan } : undefined;
       const activity = await logActivity({
@@ -123,7 +195,8 @@ export function registerActivityTools(server: McpServer): void {
         raw_json,
         is_planned: true,
       });
-      return { content: [{ type: 'text', text: JSON.stringify(activity) }] };
+      const payload = readinessAdjustment ? { ...activity, readiness_adjustment: readinessAdjustment } : activity;
+      return { content: [{ type: 'text', text: JSON.stringify(payload) }] };
     }
   );
 
@@ -170,6 +243,7 @@ export function registerActivityTools(server: McpServer): void {
       distance_km: z.number().positive().optional(),
       avg_hr: z.number().int().positive().optional(),
       notes: z.string().optional(),
+      session_rpe: z.number().int().min(1).max(10).optional().describe('Perceived effort 1-10, for training-load calculation'),
       exercises: z.array(ExerciseSchema).optional().describe('Full updated exercise list (replaces existing)'),
       run_plan: RunPlanSchema.optional().describe('Full updated run plan (replaces existing)'),
     },
@@ -199,19 +273,22 @@ export function registerActivityTools(server: McpServer): void {
         run_plan: RunPlanSchema.optional(),
         is_planned: z.boolean().optional().describe('True for future planned sessions'),
       })).min(1),
+      respect_readiness: z.boolean().optional().describe('Modulate suggested weights based on the day\'s readiness score and ACWR (default true). Only has an effect when date is today or tomorrow.'),
     },
-    async ({ date, activities }) => {
+    async ({ date, activities, respect_readiness }) => {
       await deleteActivitiesForDate(date);
       const weights = await getExerciseWeights();
       const weightMap = new Map(weights.map((w) => [w.exercise_name.toLowerCase(), w]));
+      const { modifier, readiness_adjustment } = await computeReadinessModifier(date, respect_readiness ?? true);
       const created = await Promise.all(
         activities.map(({ type, duration_mins, distance_km, notes, exercises, run_plan, is_planned }) => {
-          const resolvedExercises = exercises ? applyWeightSuggestions(exercises, weightMap) : undefined;
+          const resolvedExercises = exercises ? applyWeightSuggestions(exercises, weightMap, modifier) : undefined;
           const raw_json = (resolvedExercises || run_plan) ? { exercises: resolvedExercises, run_plan } : undefined;
           return logActivity({ date, type, source: 'manual', duration_mins, distance_km, notes, raw_json, is_planned: is_planned ?? false });
         })
       );
-      return { content: [{ type: 'text', text: JSON.stringify(created) }] };
+      const payload = readiness_adjustment ? { activities: created, readiness_adjustment } : { activities: created };
+      return { content: [{ type: 'text', text: JSON.stringify(payload) }] };
     }
   );
 

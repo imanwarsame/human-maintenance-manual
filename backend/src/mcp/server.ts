@@ -11,6 +11,10 @@ import { registerPlanContextTools } from './tools/planContextTools.js';
 import { registerBodyCompositionTools } from './tools/bodyCompositionTools.js';
 import { registerHealthIncidentTools } from './tools/healthIncidentTools.js';
 import { registerWellnessTools } from './tools/wellnessTools.js';
+import { registerTrainingLoadTools } from './tools/trainingLoadTools.js';
+import { registerReadinessTools } from './tools/readinessTools.js';
+import { registerDigestTools } from './tools/digestTools.js';
+import { registerCorrelationTools } from './tools/correlationTools.js';
 
 function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -27,6 +31,10 @@ function createMcpServer(): McpServer {
   registerBodyCompositionTools(server);
   registerHealthIncidentTools(server);
   registerWellnessTools(server);
+  registerTrainingLoadTools(server);
+  registerReadinessTools(server);
+  registerDigestTools(server);
+  registerCorrelationTools(server);
 
   return server;
 }

@@ -8,6 +8,11 @@ import {
   type BodyWeightEntry,
   type WellnessEntry,
 } from '../hooks/useProgress.ts';
+import { useTrainingLoad, type TrainingLoadSummary, type DailyLoad, type AcwrBand } from '../hooks/useTrainingLoad.ts';
+import { useReadinessSeries } from '../hooks/useReadiness.ts';
+import { useWeeklyNote } from '../hooks/useToday.ts';
+import { useCorrelations, type CorrelationResult } from '../hooks/useCorrelations.ts';
+import type { CoachingNote } from '../types/index.ts';
 
 function useInView(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
@@ -83,11 +88,13 @@ function LineChart({
   formatY,
   color = '#8b5cf6',
   invertY = false,
+  domain,
 }: {
   data: { x: string; y: number }[];
   formatY: (v: number) => string;
   color?: string;
   invertY?: boolean;
+  domain?: [number, number];
 }) {
   if (data.length < 2) {
     return <p className="text-sm text-ink-tertiary text-center py-6">Not enough data yet</p>;
@@ -98,8 +105,8 @@ function LineChart({
   const innerH = H - PAD.top - PAD.bottom;
 
   const ys = data.map((d) => d.y);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
+  const minY = domain ? domain[0] : Math.min(...ys);
+  const maxY = domain ? domain[1] : Math.max(...ys);
   const rangeY = maxY - minY || 1;
 
   const toX = (i: number) => PAD.left + (i / (data.length - 1)) * innerW;
@@ -180,6 +187,129 @@ function MiniLineChart({
       <text x={toX(0)} y={H - 2} textAnchor="start" fontSize="8" fill="rgba(255,255,255,0.35)">{data[0].x}</text>
       <text x={toX(data.length - 1)} y={H - 2} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{data[data.length - 1].x}</text>
     </svg>
+  );
+}
+
+const ACWR_BAND_META: Record<AcwrBand, { label: string; color: string }> = {
+  undertrained: { label: 'Undertrained', color: '#3b82f6' },
+  optimal: { label: 'Optimal', color: '#22c55e' },
+  caution: { label: 'Caution', color: '#eab308' },
+  high_risk: { label: 'High risk', color: '#ef4444' },
+};
+
+function LoadBars({ data }: { data: DailyLoad[] }) {
+  const W = 400, H = 60;
+  const PAD = { top: 4, right: 4, bottom: 4, left: 4 };
+  const innerW = W - PAD.left - PAD.right;
+  const innerH = H - PAD.top - PAD.bottom;
+  const max = Math.max(...data.map((d) => d.load), 1);
+  const barW = innerW / data.length;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+      {data.map((d, i) => {
+        const h = (d.load / max) * innerH;
+        const x = PAD.left + i * barW;
+        const y = PAD.top + innerH - h;
+        return (
+          <rect
+            key={d.date}
+            x={x + 0.5}
+            y={y}
+            width={Math.max(barW - 1, 1)}
+            height={d.load > 0 ? Math.max(h, 1) : 0}
+            fill="#8b5cf6"
+            opacity={i >= data.length - 7 ? 1 : 0.4}
+            rx="1"
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function TrainingLoadSection({ data }: { data: TrainingLoadSummary }) {
+  const bandMeta = data.band ? ACWR_BAND_META[data.band] : null;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-2xl font-bold text-ink-primary num leading-none">
+            {data.acwr != null ? data.acwr.toFixed(2) : '—'}
+          </p>
+          <p className="text-xs text-ink-tertiary mt-1">ACWR (7d : 28d avg)</p>
+        </div>
+        {bandMeta ? (
+          <span
+            className="text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-full"
+            style={{ color: bandMeta.color, backgroundColor: `${bandMeta.color}1a` }}
+          >
+            {bandMeta.label}
+          </span>
+        ) : (
+          <span className="text-xs text-ink-muted text-right">
+            Building baseline<br />({data.chronic_days_available}/21d)
+          </span>
+        )}
+      </div>
+      <LoadBars data={data.daily_loads} />
+      <div className="flex justify-between text-xs text-ink-tertiary num">
+        <span>Acute 7d: {data.acute_7d}</span>
+        <span>Chronic wk avg: {data.chronic_28d_weekly}</span>
+      </div>
+      {data.projected.planned_load > 0 && (
+        <p className="text-xs text-ink-tertiary pt-1 border-t border-white/[.07]">
+          Planned this week: {data.projected.planned_load} load
+          {data.projected.acwr_next_7d != null && ` · projected ACWR ${data.projected.acwr_next_7d.toFixed(2)}`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function WeeklyDigestSection({ note }: { note: CoachingNote }) {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <div>
+      <div className="pl-3 border-l-2 border-brand-500/40">
+        <p
+          className={`text-sm text-ink-secondary leading-relaxed whitespace-pre-wrap ${
+            expanded ? '' : 'line-clamp-3'
+          }`}
+        >
+          {note.content}
+        </p>
+      </div>
+      <div className="flex items-center justify-between mt-2">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-xs text-ink-tertiary hover:text-ink-secondary transition-colors"
+        >
+          {expanded ? 'Collapse' : 'Expand'}
+        </button>
+        <p className="text-xs text-ink-muted num">
+          {new Date(note.generated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ReadinessSection({ data }: { data: { date: string; score: number | null }[] }) {
+  const chartData = data
+    .filter((d): d is { date: string; score: number } => d.score != null)
+    .map((d) => ({ x: formatDate(d.date), y: d.score }));
+  if (chartData.length < 2) {
+    return <p className="text-sm text-ink-tertiary text-center py-6">Not enough data yet</p>;
+  }
+  const latest = chartData[chartData.length - 1];
+  return (
+    <>
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="text-xs text-ink-tertiary">latest</span>
+        <span className="text-sm font-medium text-ink-secondary num">{latest.y}/100</span>
+      </div>
+      <LineChart data={chartData} formatY={(v) => v.toFixed(0)} color="#8b5cf6" domain={[0, 100]} />
+    </>
   );
 }
 
@@ -540,6 +670,39 @@ function WellnessSection({ data }: { data: WellnessEntry[] }) {
   );
 }
 
+function PatternsSection({ data }: { data: CorrelationResult[] }) {
+  const significant = data.filter((c) => c.significant);
+  const rest = data.filter((c) => !c.significant);
+  return (
+    <div className="space-y-3">
+      {significant.length === 0 && (
+        <p className="text-xs text-ink-tertiary">
+          No strong patterns yet — this fills in as you log more days.
+        </p>
+      )}
+      {significant.map((c) => (
+        <p key={`${c.x}-${c.y}-${c.lag_days}`} className="text-sm text-ink-secondary leading-relaxed">
+          {c.label}
+          {c.r != null && (
+            <span className="text-ink-tertiary">
+              {' '}(r = {c.r.toFixed(2)}, n = {c.n} days — association, not proof)
+            </span>
+          )}
+        </p>
+      ))}
+      {rest.length > 0 && (
+        <div className="pt-2 border-t border-white/[.07] space-y-1">
+          {rest.map((c) => (
+            <p key={`${c.x}-${c.y}-${c.lag_days}`} className="text-xs text-ink-muted">
+              {c.label}: {c.reason ?? 'not enough data'}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   const [ref, inView] = useInView();
   return (
@@ -560,6 +723,12 @@ function SectionCard({ title, children }: { title: string; children: React.React
 
 export default function Progress() {
   const { data, isLoading, isError } = useProgress();
+  const { data: trainingLoad } = useTrainingLoad();
+  const today = toDateStr(new Date());
+  const thirtyDaysAgo = toDateStr(new Date(Date.now() - 29 * 86_400_000));
+  const { data: readinessSeries } = useReadinessSeries(thirtyDaysAgo, today);
+  const { data: weeklyNote } = useWeeklyNote();
+  const { data: correlations } = useCorrelations();
 
   if (isLoading) {
     return (
@@ -585,9 +754,27 @@ export default function Progress() {
     <div className="space-y-4 animate-fade-in">
       <h1 className="text-base font-semibold text-ink-primary tracking-wide animate-fade-up">Progress</h1>
 
+      {weeklyNote && (
+        <SectionCard title="This Week's Readout">
+          <WeeklyDigestSection note={weeklyNote} />
+        </SectionCard>
+      )}
+
       <SectionCard title="This Week's Volume">
         <WeeklyVolumeSection data={data.weeklyVolume} />
       </SectionCard>
+
+      {trainingLoad && (
+        <SectionCard title="Training Load · ACWR">
+          <TrainingLoadSection data={trainingLoad} />
+        </SectionCard>
+      )}
+
+      {readinessSeries && (
+        <SectionCard title="Readiness · 30 days">
+          <ReadinessSection data={readinessSeries} />
+        </SectionCard>
+      )}
 
       {data.exerciseHistory.length > 0 && (
         <SectionCard title="Exercise Progress · 90 days">
@@ -610,6 +797,12 @@ export default function Progress() {
       {data.wellness.length > 0 && (
         <SectionCard title="Wellness">
           <WellnessSection data={data.wellness} />
+        </SectionCard>
+      )}
+
+      {correlations && (
+        <SectionCard title="Patterns">
+          <PatternsSection data={correlations} />
         </SectionCard>
       )}
     </div>

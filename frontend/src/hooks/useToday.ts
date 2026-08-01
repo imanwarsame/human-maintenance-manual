@@ -16,6 +16,13 @@ export function useCoachingNote() {
   });
 }
 
+export function useWeeklyNote() {
+  return useQuery({
+    queryKey: ['coaching-note-weekly'],
+    queryFn: () => api.get<CoachingNote | null>('/api/coaching-note/weekly'),
+  });
+}
+
 export function useLogWater() {
   const qc = useQueryClient();
   return useMutation({

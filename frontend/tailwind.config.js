@@ -39,6 +39,7 @@ export default {
         'fade-up-1': 'fade-up 280ms 60ms cubic-bezier(0.4,0,0.2,1) both',
         'fade-up-2': 'fade-up 280ms 120ms cubic-bezier(0.4,0,0.2,1) both',
         'fade-up-3': 'fade-up 280ms 180ms cubic-bezier(0.4,0,0.2,1) both',
+        'fade-up-4': 'fade-up 280ms 240ms cubic-bezier(0.4,0,0.2,1) both',
         'fade-in': 'fade-in 200ms ease both',
       },
     },

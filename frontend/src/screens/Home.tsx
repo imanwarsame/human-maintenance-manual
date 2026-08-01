@@ -1,6 +1,8 @@
-import { useToday, useCoachingNote } from '../hooks/useToday.ts';
+import { Link } from 'react-router-dom';
+import { useToday, useCoachingNote, useWeeklyNote } from '../hooks/useToday.ts';
 import { usePlanContext } from '../hooks/usePlanContext.ts';
 import CoachingCard from '../components/CoachingCard.tsx';
+import ReadinessCard from '../components/ReadinessCard.tsx';
 import SummaryBar from '../components/SummaryBar.tsx';
 import MacroSummary from '../components/MacroSummary.tsx';
 import type { MacroTargets } from '../types/index.ts';
@@ -8,8 +10,10 @@ import type { MacroTargets } from '../types/index.ts';
 export default function Home() {
   const { data: today, isLoading: loadingToday } = useToday();
   const { data: note, isLoading: loadingNote } = useCoachingNote();
+  const { data: weeklyNote } = useWeeklyNote();
   const { data: macroCtx } = usePlanContext<MacroTargets>('macro_targets');
   const { data: calorieCtx } = usePlanContext<{ training: number; rest: number }>('calorie_targets');
+  const showWeeklyTeaser = weeklyNote != null && [0, 1, 2].includes(new Date().getDay());
 
   const completedMeals = (today?.meals ?? []).filter((m) => m.completion !== null);
   const REST_ACTIVITY_TYPES = new Set(['rest', 'mobility', 'cycling']);
@@ -43,14 +47,26 @@ export default function Home() {
       </div>
 
       <div className="border-t border-white/[.06] py-5 animate-fade-up-1">
-        <CoachingCard note={note} loading={loadingNote} />
+        <ReadinessCard />
+        {showWeeklyTeaser && (
+          <Link
+            to="/progress"
+            className="block mt-3 text-xs text-brand-500 hover:text-brand-300 transition-colors"
+          >
+            This week's readout is ready →
+          </Link>
+        )}
       </div>
 
       <div className="border-t border-white/[.06] py-5 animate-fade-up-2">
+        <CoachingCard note={note} loading={loadingNote} />
+      </div>
+
+      <div className="border-t border-white/[.06] py-5 animate-fade-up-3">
         <SummaryBar data={today} loading={loadingToday} />
       </div>
 
-      <div className="border-t border-white/[.06] pt-5 animate-fade-up-3">
+      <div className="border-t border-white/[.06] pt-5 animate-fade-up-4">
         <MacroSummary
           macroTargets={macroCtx?.value ?? null}
           calorieTarget={calorieTarget}
