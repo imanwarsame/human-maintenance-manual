@@ -83,6 +83,77 @@ function Sparkline({ values, color = '#8b5cf6' }: { values: number[]; color?: st
   );
 }
 
+function useDragIndex(dataLength: number, W: number, padLeft: number, innerW: number) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const draggingRef = useRef(false);
+
+  function indexFromClientX(clientX: number): number | null {
+    const svg = svgRef.current;
+    if (!svg || dataLength < 2) return null;
+    const rect = svg.getBoundingClientRect();
+    if (rect.width === 0) return null;
+    const scale = W / rect.width;
+    const vbX = (clientX - rect.left) * scale;
+    const raw = ((vbX - padLeft) / innerW) * (dataLength - 1);
+    return Math.min(dataLength - 1, Math.max(0, Math.round(raw)));
+  }
+
+  function onPointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    draggingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setActiveIndex(indexFromClientX(e.clientX));
+  }
+  function onPointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    if (!draggingRef.current) return;
+    setActiveIndex(indexFromClientX(e.clientX));
+  }
+  function endDrag() {
+    draggingRef.current = false;
+    setActiveIndex(null);
+  }
+
+  return {
+    svgRef,
+    activeIndex,
+    handlers: {
+      onPointerDown,
+      onPointerMove,
+      onPointerUp: endDrag,
+      onPointerCancel: endDrag,
+      onPointerLeave: endDrag,
+    },
+  };
+}
+
+function ChartTooltip({
+  x,
+  y,
+  W,
+  H,
+  label,
+  value,
+}: {
+  x: number;
+  y: number;
+  W: number;
+  H: number;
+  label: string;
+  value: string;
+}) {
+  const leftPct = Math.min(88, Math.max(12, (x / W) * 100));
+  const topPct = Math.max(0, (y / H) * 100);
+  return (
+    <div
+      className="pointer-events-none absolute -translate-x-1/2 -translate-y-[calc(100%+8px)] bg-surface-0/95 border border-white/10 rounded-lg px-2 py-1 shadow-lg text-xs whitespace-nowrap z-10"
+      style={{ left: `${leftPct}%`, top: `${topPct}%` }}
+    >
+      <span className="text-ink-tertiary">{label}</span>{' '}
+      <span className="text-ink-primary font-semibold num">{value}</span>
+    </div>
+  );
+}
+
 function LineChart({
   data,
   formatY,
@@ -96,13 +167,15 @@ function LineChart({
   invertY?: boolean;
   domain?: [number, number];
 }) {
-  if (data.length < 2) {
-    return <p className="text-sm text-ink-tertiary text-center py-6">Not enough data yet</p>;
-  }
   const W = 400, H = 130;
   const PAD = { top: 10, right: 12, bottom: 28, left: 44 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
+  const { svgRef, activeIndex, handlers } = useDragIndex(data.length, W, PAD.left, innerW);
+
+  if (data.length < 2) {
+    return <p className="text-sm text-ink-tertiary text-center py-6">Not enough data yet</p>;
+  }
 
   const ys = data.map((d) => d.y);
   const minY = domain ? domain[0] : Math.min(...ys);
@@ -124,29 +197,56 @@ function LineChart({
     { i: data.length - 1, anchor: 'end' as const },
   ].filter((l, idx, arr) => arr.findIndex((ll) => ll.i === l.i) === idx);
 
+  const active = activeIndex != null ? data[activeIndex] : null;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-      {ticks.map((v, i) => {
-        const y = toY(v);
-        return (
-          <g key={i}>
-            <line x1={PAD.left} x2={W - PAD.right} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-            <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.35)">
-              {formatY(v)}
-            </text>
-          </g>
-        );
-      })}
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {data.map((d, i) => (
-        <circle key={i} cx={toX(i)} cy={toY(d.y)} r="3" fill={color} />
-      ))}
-      {xLabels.map(({ i, anchor }) => (
-        <text key={i} x={toX(i)} y={H - 6} textAnchor={anchor as 'start' | 'middle' | 'end'} fontSize="9" fill="rgba(255,255,255,0.35)">
-          {data[i].x}
-        </text>
-      ))}
-    </svg>
+    <div className="relative">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full touch-none cursor-crosshair select-none"
+        style={{ height: H }}
+        {...handlers}
+      >
+        {ticks.map((v, i) => {
+          const y = toY(v);
+          return (
+            <g key={i}>
+              <line x1={PAD.left} x2={W - PAD.right} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.35)">
+                {formatY(v)}
+              </text>
+            </g>
+          );
+        })}
+        <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {data.map((d, i) => (
+          <circle key={i} cx={toX(i)} cy={toY(d.y)} r="3" fill={color} />
+        ))}
+        {active && activeIndex != null && (
+          <>
+            <line
+              x1={toX(activeIndex)}
+              x2={toX(activeIndex)}
+              y1={PAD.top}
+              y2={H - PAD.bottom}
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth="1"
+              strokeDasharray="3,3"
+            />
+            <circle cx={toX(activeIndex)} cy={toY(active.y)} r="5" fill={color} stroke="white" strokeWidth="1.5" />
+          </>
+        )}
+        {xLabels.map(({ i, anchor }) => (
+          <text key={i} x={toX(i)} y={H - 6} textAnchor={anchor as 'start' | 'middle' | 'end'} fontSize="9" fill="rgba(255,255,255,0.35)">
+            {data[i].x}
+          </text>
+        ))}
+      </svg>
+      {active && activeIndex != null && (
+        <ChartTooltip x={toX(activeIndex)} y={toY(active.y)} W={W} H={H} label={active.x} value={formatY(active.y)} />
+      )}
+    </div>
   );
 }
 
@@ -159,11 +259,13 @@ function MiniLineChart({
   color: string;
   formatY?: (v: number) => string;
 }) {
-  if (data.length < 2) return <p className="text-xs text-ink-tertiary py-2">Not enough data yet</p>;
   const W = 400, H = 70;
   const PAD = { top: 6, right: 10, bottom: 18, left: 36 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
+  const { svgRef, activeIndex, handlers } = useDragIndex(data.length, W, PAD.left, innerW);
+
+  if (data.length < 2) return <p className="text-xs text-ink-tertiary py-2">Not enough data yet</p>;
 
   const ys = data.map((d) => d.y);
   const minY = Math.min(...ys);
@@ -173,20 +275,46 @@ function MiniLineChart({
   const toX = (i: number) => PAD.left + (i / (data.length - 1)) * innerW;
   const toY = (v: number) => PAD.top + (1 - (v - minY) / rangeY) * innerH;
   const pts = data.map((d, i) => `${toX(i).toFixed(1)},${toY(d.y).toFixed(1)}`).join(' ');
+  const active = activeIndex != null ? data[activeIndex] : null;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-      <line x1={PAD.left} x2={W - PAD.right} y1={toY(minY)} y2={toY(minY)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-      <line x1={PAD.left} x2={W - PAD.right} y1={toY(maxY)} y2={toY(maxY)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-      <text x={PAD.left - 4} y={toY(minY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{formatY(minY)}</text>
-      <text x={PAD.left - 4} y={toY(maxY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{formatY(maxY)}</text>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      {data.map((d, i) => (
-        <circle key={i} cx={toX(i)} cy={toY(d.y)} r="2" fill={color} />
-      ))}
-      <text x={toX(0)} y={H - 2} textAnchor="start" fontSize="8" fill="rgba(255,255,255,0.35)">{data[0].x}</text>
-      <text x={toX(data.length - 1)} y={H - 2} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{data[data.length - 1].x}</text>
-    </svg>
+    <div className="relative">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full touch-none cursor-crosshair select-none"
+        style={{ height: H }}
+        {...handlers}
+      >
+        <line x1={PAD.left} x2={W - PAD.right} y1={toY(minY)} y2={toY(minY)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+        <line x1={PAD.left} x2={W - PAD.right} y1={toY(maxY)} y2={toY(maxY)} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+        <text x={PAD.left - 4} y={toY(minY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{formatY(minY)}</text>
+        <text x={PAD.left - 4} y={toY(maxY) + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{formatY(maxY)}</text>
+        <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        {data.map((d, i) => (
+          <circle key={i} cx={toX(i)} cy={toY(d.y)} r="2" fill={color} />
+        ))}
+        {active && activeIndex != null && (
+          <>
+            <line
+              x1={toX(activeIndex)}
+              x2={toX(activeIndex)}
+              y1={PAD.top}
+              y2={H - PAD.bottom}
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth="1"
+              strokeDasharray="2,2"
+            />
+            <circle cx={toX(activeIndex)} cy={toY(active.y)} r="4" fill={color} stroke="white" strokeWidth="1.25" />
+          </>
+        )}
+        <text x={toX(0)} y={H - 2} textAnchor="start" fontSize="8" fill="rgba(255,255,255,0.35)">{data[0].x}</text>
+        <text x={toX(data.length - 1)} y={H - 2} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.35)">{data[data.length - 1].x}</text>
+      </svg>
+      {active && activeIndex != null && (
+        <ChartTooltip x={toX(activeIndex)} y={toY(active.y)} W={W} H={H} label={active.x} value={formatY(active.y)} />
+      )}
+    </div>
   );
 }
 
