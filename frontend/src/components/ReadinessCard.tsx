@@ -76,7 +76,7 @@ export default function ReadinessCard() {
         {lowConfidence ? (
           <p className="text-xs text-ink-muted mt-1">Limited history — still building your baseline</p>
         ) : data.drivers.length > 0 ? (
-          <p className="text-xs text-ink-tertiary mt-1 truncate">{data.drivers.join(' · ')}</p>
+          <p className="text-xs text-ink-tertiary mt-1">{data.drivers.join(' · ')}</p>
         ) : null}
         {data.incident_reason && (
           <p className="text-xs text-ink-muted mt-0.5">Adjusted for {data.incident_reason}</p>
