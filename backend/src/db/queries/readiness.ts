@@ -37,6 +37,14 @@ function formatSleepDuration(mins: number): string {
   return `${h}h${m}m`;
 }
 
+// z is already sign-flipped for inverted metrics (e.g. resting HR), so positive
+// always means "helping readiness" and negative always means "hurting" it here.
+function impactTag(z: number): string {
+  if (z > 0) return 'positive';
+  if (z < 0) return 'negative';
+  return 'neutral';
+}
+
 type WellnessMetricKey = 'hrv' | 'resting_hr' | 'sleep_score' | 'sleep_duration_mins';
 
 interface MetricConfig {
@@ -196,14 +204,17 @@ export async function getReadiness(date?: string): Promise<ReadinessSummary> {
     .filter((c) => c.z != null)
     .sort((a, b) => Math.abs(b.z as number) - Math.abs(a.z as number))
     .slice(0, 2)
-    .map((c) =>
-      c.metric === 'sleep_duration_mins'
-        ? `${c.label} ${formatSleepDuration(c.value)} vs ${formatSleepDuration(c.baseline_mean as number)} baseline`
-        : `${c.label} ${c.value} vs ${c.baseline_mean} baseline`
-    );
+    .map((c) => {
+      const text =
+        c.metric === 'sleep_duration_mins'
+          ? `${c.label} ${formatSleepDuration(c.value)} vs ${formatSleepDuration(c.baseline_mean as number)} baseline`
+          : `${c.label} ${c.value} vs ${c.baseline_mean} baseline`;
+      return `${text} (${impactTag(c.z as number)})`;
+    });
   if (drivers.length === 0 && components.some((c) => c.metric === 'acwr')) {
     const acwrComponent = components.find((c) => c.metric === 'acwr')!;
-    drivers.push(`ACWR ${acwrComponent.value.toFixed(2)}`);
+    const tag = acwrComponent.sub_score < 100 ? 'negative' : 'neutral';
+    drivers.push(`ACWR ${acwrComponent.value.toFixed(2)} (${tag})`);
   }
 
   return {
