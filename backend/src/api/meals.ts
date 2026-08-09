@@ -43,6 +43,8 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Marks a meal eaten, or edits the logged time if it's already been marked eaten
+// (upserts on meal_plan_id, so calling this again just updates eaten_at).
 router.post('/:id/complete', async (req, res, next) => {
   try {
     const { id } = req.params;

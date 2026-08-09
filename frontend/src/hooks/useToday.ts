@@ -41,7 +41,8 @@ export function useLogWater() {
 export function useMarkMealEaten() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (mealId: string) => api.post(`/api/meals/${mealId}/complete`, {}),
+    mutationFn: ({ mealId, eaten_at }: { mealId: string; eaten_at?: string }) =>
+      api.post(`/api/meals/${mealId}/complete`, eaten_at ? { eaten_at } : {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['today'] });
       qc.invalidateQueries({ queryKey: ['meals'] });

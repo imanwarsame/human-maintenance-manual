@@ -47,10 +47,10 @@ export function registerMealTools(server: McpServer): void {
 
   server.tool(
     'mark_meal_eaten',
-    'Mark a planned meal as eaten.',
+    'Mark a planned meal as eaten, optionally at a specific time. If the meal was already marked eaten, calling this again updates (edits) the logged eaten_at time instead of creating a duplicate.',
     {
       meal_plan_id: z.string().describe('UUID of the meal plan entry'),
-      eaten_at: z.string().optional().describe('ISO timestamp when the meal was eaten (defaults to now)'),
+      eaten_at: z.string().optional().describe('ISO timestamp when the meal was eaten (defaults to now). Pass this to log or edit the time the meal was eaten.'),
     },
     async ({ meal_plan_id, eaten_at }) => {
       const completion = await markMealEaten(meal_plan_id, eaten_at ?? new Date().toISOString());

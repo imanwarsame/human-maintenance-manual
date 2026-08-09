@@ -111,7 +111,7 @@ export async function getMealPlansForDateRange(from: string, to: string): Promis
 export async function markMealEaten(meal_plan_id: string, eaten_at: string): Promise<MealCompletion> {
   const { data, error } = await supabase
     .from('meal_completions')
-    .insert({ meal_plan_id, eaten_at })
+    .upsert({ meal_plan_id, eaten_at }, { onConflict: 'meal_plan_id' })
     .select()
     .single();
   if (error) throw error;
