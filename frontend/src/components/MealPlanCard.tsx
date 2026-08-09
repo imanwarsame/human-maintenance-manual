@@ -15,9 +15,22 @@ interface Props {
   onDelete?: (id: string) => void;
 }
 
+function toTimeInputValue(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function buildEatenAt(date: string, timeStr: string): string {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const d = new Date(`${date}T00:00:00`);
+  d.setHours(hours, minutes, 0, 0);
+  return d.toISOString();
+}
+
 export default function MealPlanCard({ meal, readOnly = false, onDelete }: Props) {
   const [localEaten, setLocalEaten] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingTime, setEditingTime] = useState(false);
   const { mutate: markEaten, isPending } = useMarkMealEaten();
   const isEaten = meal.completion !== null || localEaten;
 
@@ -34,7 +47,7 @@ export default function MealPlanCard({ meal, readOnly = false, onDelete }: Props
           onClick={() => {
             if (!isEaten && !readOnly) {
               setLocalEaten(true);
-              markEaten(meal.id);
+              markEaten({ mealId: meal.id });
             }
           }}
           disabled={isPending || isEaten || readOnly}
@@ -93,9 +106,31 @@ export default function MealPlanCard({ meal, readOnly = false, onDelete }: Props
             <p className="text-xs text-ink-muted mt-1 italic">{meal.prep_notes}</p>
           )}
           {isEaten && meal.completion && (
-            <p className="text-xs text-brand-500 mt-1 num animate-fade-in">
-              Eaten at {new Date(meal.completion.eaten_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-            </p>
+            readOnly ? (
+              <p className="text-xs text-brand-500 mt-1 num animate-fade-in">
+                Eaten at {new Date(meal.completion.eaten_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            ) : editingTime ? (
+              <input
+                type="time"
+                defaultValue={toTimeInputValue(meal.completion.eaten_at)}
+                autoFocus
+                onBlur={() => setEditingTime(false)}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    markEaten({ mealId: meal.id, eaten_at: buildEatenAt(meal.date, e.target.value) });
+                  }
+                }}
+                className="text-xs bg-surface-2 border border-white/[.09] rounded px-1.5 py-0.5 text-ink-primary mt-1 num focus:outline-none focus:ring-1 focus:ring-brand-500/50"
+              />
+            ) : (
+              <button
+                onClick={() => setEditingTime(true)}
+                className="text-xs text-brand-500 mt-1 num animate-fade-in hover:underline"
+              >
+                Eaten at {new Date(meal.completion.eaten_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+              </button>
+            )
           )}
         </div>
       </div>
