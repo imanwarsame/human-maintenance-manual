@@ -1,5 +1,5 @@
 import { getWellnessLogs, type WellnessLog } from './wellness.js';
-import { getTrainingLoad } from './trainingLoad.js';
+import { getAcwrSeries, type AcwrPoint } from './trainingLoad.js';
 import { getIncidents, type HealthIncident } from './healthIncidents.js';
 
 function addDays(date: string, days: number): string {
@@ -101,20 +101,34 @@ function severityDiscount(incident: HealthIncident): number {
   return 0.95; // recovering
 }
 
-export async function getReadiness(date?: string): Promise<ReadinessSummary> {
-  const targetDate = date ?? new Date().toISOString().slice(0, 10);
-  const baselineFrom = addDays(targetDate, -28);
-  const baselineTo = addDays(targetDate, -1);
+function resolveIncidentModifier(
+  activeIncidents: HealthIncident[],
+  recoveringIncidents: HealthIncident[],
+): { incidentModifier: number; incidentReason: string | null } {
+  const allIncidents = [...activeIncidents, ...recoveringIncidents];
+  let incidentModifier = 1;
+  let worstIncident: HealthIncident | null = null;
+  for (const incident of allIncidents) {
+    const discount = severityDiscount(incident);
+    if (discount < incidentModifier) {
+      incidentModifier = discount;
+      worstIncident = incident;
+    }
+  }
+  return {
+    incidentModifier,
+    incidentReason: worstIncident ? `${worstIncident.name} (${worstIncident.status})` : null,
+  };
+}
 
-  const [baselineLogs, todayLogs, load, activeIncidents, recoveringIncidents] = await Promise.all([
-    getWellnessLogs(baselineFrom, baselineTo),
-    getWellnessLogs(targetDate, targetDate),
-    getTrainingLoad(targetDate),
-    getIncidents({ status: 'active' }),
-    getIncidents({ status: 'recovering' }),
-  ]);
-
-  const today: WellnessLog | undefined = todayLogs[0];
+function computeReadinessForDate(
+  targetDate: string,
+  today: WellnessLog | undefined,
+  baselineLogs: WellnessLog[],
+  acwrPoint: AcwrPoint | undefined,
+  incidentModifier: number,
+  incidentReason: string | null,
+): ReadinessSummary {
   const components: ReadinessComponent[] = [];
 
   for (const cfg of METRIC_CONFIGS) {
@@ -148,18 +162,18 @@ export async function getReadiness(date?: string): Promise<ReadinessSummary> {
 
   // ACWR sub-score is deliberately asymmetric: low ACWR means fresh, not unready,
   // so it's only penalised above the 1.3 "optimal" ceiling.
-  if (load.acwr != null) {
+  if (acwrPoint?.acwr != null) {
     let acwrSubScore: number;
-    if (load.acwr <= 1.3) acwrSubScore = 100;
-    else if (load.acwr >= 1.8) acwrSubScore = 40;
-    else acwrSubScore = 100 - ((load.acwr - 1.3) / 0.5) * 60;
+    if (acwrPoint.acwr <= 1.3) acwrSubScore = 100;
+    else if (acwrPoint.acwr >= 1.8) acwrSubScore = 40;
+    else acwrSubScore = 100 - ((acwrPoint.acwr - 1.3) / 0.5) * 60;
 
     components.push({
       metric: 'acwr',
       label: 'ACWR',
-      value: load.acwr,
+      value: acwrPoint.acwr,
       baseline_mean: null,
-      baseline_n: load.chronic_days_available,
+      baseline_n: acwrPoint.chronic_days_available,
       z: null,
       sub_score: round1(acwrSubScore),
       weight: ACWR_WEIGHT,
@@ -182,17 +196,6 @@ export async function getReadiness(date?: string): Promise<ReadinessSummary> {
   const totalWeight = components.reduce((s, c) => s + c.weight, 0);
   const weightedSum = components.reduce((s, c) => s + c.sub_score * c.weight, 0);
   const rawScore = weightedSum / totalWeight;
-
-  const allIncidents = [...activeIncidents, ...recoveringIncidents];
-  let incidentModifier = 1;
-  let worstIncident: HealthIncident | null = null;
-  for (const incident of allIncidents) {
-    const discount = severityDiscount(incident);
-    if (discount < incidentModifier) {
-      incidentModifier = discount;
-      worstIncident = incident;
-    }
-  }
 
   const score = Math.round(clamp(rawScore * incidentModifier, 0, 100));
   const band: ReadinessBand = score < 50 ? 'low' : score < 70 ? 'moderate' : score < 85 ? 'good' : 'prime';
@@ -223,13 +226,64 @@ export async function getReadiness(date?: string): Promise<ReadinessSummary> {
     band,
     confidence,
     incident_modifier: incidentModifier,
-    incident_reason: worstIncident ? `${worstIncident.name} (${worstIncident.status})` : null,
+    incident_reason: incidentReason,
     components,
     drivers,
   };
 }
 
+export async function getReadiness(date?: string): Promise<ReadinessSummary> {
+  const targetDate = date ?? new Date().toISOString().slice(0, 10);
+  const baselineFrom = addDays(targetDate, -28);
+  const baselineTo = addDays(targetDate, -1);
+
+  const [baselineLogs, todayLogs, acwrSeries, activeIncidents, recoveringIncidents] = await Promise.all([
+    getWellnessLogs(baselineFrom, baselineTo),
+    getWellnessLogs(targetDate, targetDate),
+    getAcwrSeries(targetDate, targetDate),
+    getIncidents({ status: 'active' }),
+    getIncidents({ status: 'recovering' }),
+  ]);
+
+  const { incidentModifier, incidentReason } = resolveIncidentModifier(activeIncidents, recoveringIncidents);
+  return computeReadinessForDate(
+    targetDate,
+    todayLogs[0],
+    baselineLogs,
+    acwrSeries.get(targetDate),
+    incidentModifier,
+    incidentReason,
+  );
+}
+
+// Bulk version of getReadiness for a date range. Fetches wellness logs, the ACWR series,
+// and incidents once (rather than once per day) and derives each day's score in memory —
+// avoids an O(days) fan-out of DB round-trips against a resource-constrained backend.
 export async function getReadinessSeries(from: string, to: string): Promise<ReadinessSummary[]> {
   const dates = dateRange(from, to);
-  return Promise.all(dates.map((d) => getReadiness(d)));
+  const baselineFrom = addDays(from, -28);
+
+  const [wellnessLogs, acwrSeries, activeIncidents, recoveringIncidents] = await Promise.all([
+    getWellnessLogs(baselineFrom, to),
+    getAcwrSeries(from, to),
+    getIncidents({ status: 'active' }),
+    getIncidents({ status: 'recovering' }),
+  ]);
+
+  const wellnessByDate = new Map(wellnessLogs.map((w) => [w.date, w]));
+  const { incidentModifier, incidentReason } = resolveIncidentModifier(activeIncidents, recoveringIncidents);
+
+  return dates.map((targetDate) => {
+    const baselineFromD = addDays(targetDate, -28);
+    const baselineToD = addDays(targetDate, -1);
+    const baselineLogs = wellnessLogs.filter((w) => w.date >= baselineFromD && w.date <= baselineToD);
+    return computeReadinessForDate(
+      targetDate,
+      wellnessByDate.get(targetDate),
+      baselineLogs,
+      acwrSeries.get(targetDate),
+      incidentModifier,
+      incidentReason,
+    );
+  });
 }

@@ -132,6 +132,49 @@ export interface TrainingLoadSummary {
   projected: { acwr_next_7d: number | null; planned_load: number };
 }
 
+export interface AcwrPoint {
+  date: string;
+  acwr: number | null;
+  chronic_days_available: number;
+}
+
+// Bulk version of the ACWR portion of getTrainingLoad, for callers that need it across
+// a date range (e.g. readiness series). Fetches activities/HR profile/earliest-date once
+// instead of once per date, then derives each day's rolling 7d/28d windows in memory.
+export async function getAcwrSeries(from: string, to: string): Promise<Map<string, AcwrPoint>> {
+  const paddedFrom = addDays(from, -27);
+
+  const [activities, hrProfile, earliest] = await Promise.all([
+    getActivitiesForDateRange(paddedFrom, to),
+    getHrProfile(),
+    getEarliestActivityDate(),
+  ]);
+
+  const fullSeries = buildDailyLoadSeries(activities, hrProfile, paddedFrom, to);
+  const loadByDate = new Map(fullSeries.map((d) => [d.date, d.load]));
+
+  function sumTrailing(endDate: string, days: number): number {
+    let sum = 0;
+    for (let i = 0; i < days; i++) sum += loadByDate.get(addDays(endDate, -i)) ?? 0;
+    return sum;
+  }
+
+  const result = new Map<string, AcwrPoint>();
+  for (const date of dateRange(from, to)) {
+    const acute_7d = round1(sumTrailing(date, 7));
+    const chronic_28d_weekly = round1(sumTrailing(date, 28) / 4);
+    const acwr = chronic_28d_weekly > 0 ? round2(acute_7d / chronic_28d_weekly) : null;
+
+    const daysSinceStart = earliest
+      ? Math.round((new Date(date).getTime() - new Date(earliest).getTime()) / 86_400_000) + 1
+      : 0;
+    const chronic_days_available = Math.max(0, Math.min(28, daysSinceStart));
+
+    result.set(date, { date, acwr, chronic_days_available });
+  }
+  return result;
+}
+
 export async function getTrainingLoad(date?: string): Promise<TrainingLoadSummary> {
   const targetDate = date ?? new Date().toISOString().slice(0, 10);
   const chronicFrom = addDays(targetDate, -27);
