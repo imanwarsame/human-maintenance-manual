@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getReadiness, getReadinessSeries } from '../db/queries/readiness.js';
+import { withCache } from '../lib/cache.js';
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.get('/series', async (req, res, next) => {
       res.status(400).json({ error: 'from and to are required' });
       return;
     }
-    const series = await getReadinessSeries(from, to);
+    const series = await withCache(`readiness-series:${from}:${to}`, 2 * 60 * 1000, () => getReadinessSeries(from, to));
     res.json(series);
   } catch (err) {
     next(err);

@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { getTrainingLoad, getDailyLoadSeries } from '../db/queries/trainingLoad.js';
+import { withCache } from '../lib/cache.js';
 
 const router = Router();
 
 router.get('/', async (req, res, next) => {
   try {
     const date = typeof req.query.date === 'string' ? req.query.date : undefined;
-    const summary = await getTrainingLoad(date);
+    const summary = await withCache(`training-load:${date ?? 'today'}`, 2 * 60 * 1000, () => getTrainingLoad(date));
     res.json(summary);
   } catch (err) {
     next(err);

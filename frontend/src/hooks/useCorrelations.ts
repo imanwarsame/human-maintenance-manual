@@ -13,10 +13,11 @@ export interface CorrelationResult {
   reason: string | null;
 }
 
-export function useCorrelations() {
+export function useCorrelations(enabled = true) {
   return useQuery({
     queryKey: ['correlations'],
     queryFn: () => api.get<CorrelationResult[]>('/api/correlations'),
     staleTime: 60 * 60 * 1000,
+    enabled,
   });
 }

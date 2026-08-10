@@ -856,7 +856,10 @@ export default function Progress() {
   const thirtyDaysAgo = toDateStr(new Date(Date.now() - 29 * 86_400_000));
   const { data: readinessSeries } = useReadinessSeries(thirtyDaysAgo, today);
   const { data: weeklyNote } = useWeeklyNote();
-  const { data: correlations } = useCorrelations();
+  // Deferred until the primary content has loaded — it's the heaviest of the Progress
+  // tab's requests, so keeping it out of the initial burst lets the rest load faster on
+  // the resource-constrained backend, and it's the last section on the page anyway.
+  const { data: correlations } = useCorrelations(!isLoading && !!data);
 
   if (isLoading) {
     return (
