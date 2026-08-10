@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { getWeeklyVolumeByMuscleGroup, getExerciseHistory, getRunTimes } from '../db/queries/progress.js';
+import { computeWeeklyVolumeByMuscleGroup, computeExerciseHistory, computeRunTimes } from '../db/queries/progress.js';
+import { getActivitiesForDateRange } from '../db/queries/activities.js';
 import { getBodyWeightLogs } from '../db/queries/bodyWeight.js';
 import { getWellnessLogs } from '../db/queries/wellness.js';
 
@@ -24,13 +25,20 @@ router.get('/', async (_req, res, next) => {
     sixMonthsAgo.setMonth(now.getMonth() - 6);
     const sixMonthsAgoStr = sixMonthsAgo.toISOString().slice(0, 10);
 
-    const [weeklyVolume, exerciseHistory, runTimes, bodyWeight, wellness] = await Promise.all([
-      getWeeklyVolumeByMuscleGroup(weekStartStr, today),
-      getExerciseHistory(ninetyDaysAgoStr, today),
-      getRunTimes(sixMonthsAgoStr, today),
+    // Fetch activities once for the widest window and slice in memory, rather than
+    // issuing three overlapping DB round-trips for the same underlying rows.
+    const [activities, bodyWeight, wellness] = await Promise.all([
+      getActivitiesForDateRange(sixMonthsAgoStr, today),
       getBodyWeightLogs(sixMonthsAgoStr, today),
       getWellnessLogs(sixMonthsAgoStr, today),
     ]);
+
+    const weekActivities = activities.filter((a) => a.date >= weekStartStr && a.date <= today);
+    const ninetyDayActivities = activities.filter((a) => a.date >= ninetyDaysAgoStr && a.date <= today);
+
+    const weeklyVolume = computeWeeklyVolumeByMuscleGroup(weekActivities);
+    const exerciseHistory = computeExerciseHistory(ninetyDayActivities);
+    const runTimes = computeRunTimes(activities);
 
     res.json({ weeklyVolume, exerciseHistory, runTimes, bodyWeight, wellness });
   } catch (err) {

@@ -1,4 +1,4 @@
-import { getActivitiesForDateRange } from './activities.js';
+import { getActivitiesForDateRange, type Activity } from './activities.js';
 
 const MUSCLE_PATTERNS: { pattern: RegExp; group: string }[] = [
   { pattern: /bench\s?press|chest\s?press|cable\s?fly|fl(y|ies|ye|yes)|pec\s?deck|push.?up|dip/i, group: 'Chest' },
@@ -25,8 +25,7 @@ export interface VolumeByMuscle {
   sets: number;
 }
 
-export async function getWeeklyVolumeByMuscleGroup(from: string, to: string): Promise<VolumeByMuscle[]> {
-  const activities = await getActivitiesForDateRange(from, to);
+export function computeWeeklyVolumeByMuscleGroup(activities: Activity[]): VolumeByMuscle[] {
   const strength = activities.filter(
     (a) => a.type === 'strength' && !a.is_planned && a.raw_json?.exercises?.length,
   );
@@ -46,6 +45,11 @@ export async function getWeeklyVolumeByMuscleGroup(from: string, to: string): Pr
     .sort((a, b) => b.volume - a.volume);
 }
 
+export async function getWeeklyVolumeByMuscleGroup(from: string, to: string): Promise<VolumeByMuscle[]> {
+  const activities = await getActivitiesForDateRange(from, to);
+  return computeWeeklyVolumeByMuscleGroup(activities);
+}
+
 export interface ExerciseHistoryEntry {
   date: string;
   weight_kg: number;
@@ -57,8 +61,7 @@ export interface ExerciseHistory {
   history: ExerciseHistoryEntry[];
 }
 
-export async function getExerciseHistory(from: string, to: string): Promise<ExerciseHistory[]> {
-  const activities = await getActivitiesForDateRange(from, to);
+export function computeExerciseHistory(activities: Activity[]): ExerciseHistory[] {
   const strength = activities
     .filter((a) => a.type === 'strength' && !a.is_planned && a.raw_json?.exercises?.length)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -87,6 +90,11 @@ export async function getExerciseHistory(from: string, to: string): Promise<Exer
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function getExerciseHistory(from: string, to: string): Promise<ExerciseHistory[]> {
+  const activities = await getActivitiesForDateRange(from, to);
+  return computeExerciseHistory(activities);
+}
+
 export interface RunTimeEntry {
   date: string;
   elapsed_secs: number;
@@ -95,8 +103,7 @@ export interface RunTimeEntry {
 
 type BestEffort = { name: string; elapsed_time: number; distance: number };
 
-export async function getRunTimes(from: string, to: string): Promise<RunTimeEntry[]> {
-  const activities = await getActivitiesForDateRange(from, to);
+export function computeRunTimes(activities: Activity[]): RunTimeEntry[] {
   const runs = activities
     .filter((a) => a.type === 'run' && !a.is_planned && a.raw_json)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -129,4 +136,9 @@ export async function getRunTimes(from: string, to: string): Promise<RunTimeEntr
   }
 
   return results;
+}
+
+export async function getRunTimes(from: string, to: string): Promise<RunTimeEntry[]> {
+  const activities = await getActivitiesForDateRange(from, to);
+  return computeRunTimes(activities);
 }
