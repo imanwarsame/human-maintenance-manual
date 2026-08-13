@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { usePushNotifications } from '../hooks/usePushNotifications.ts';
 import { usePlanContext, useUpdatePlanContext } from '../hooks/usePlanContext.ts';
+import { isDemoMode, setDemoMode } from '../demo/mode.ts';
 
 const INTERVAL_OPTIONS = [
   { label: '30 min', value: 0.5 },
@@ -53,6 +55,15 @@ export default function Settings() {
   const mobilityTime = (mobilityTimeData?.value as string | undefined) ?? '08:00';
 
   const isSubscribed = subStatus === 'subscribed';
+
+  const [demoOn, setDemoOn] = useState(isDemoMode());
+
+  function toggleDemo() {
+    const next = !demoOn;
+    setDemoMode(next);
+    setDemoOn(next);
+    window.location.reload();
+  }
 
   return (
     <div className="max-w-lg mx-auto space-y-8 animate-fade-in">
@@ -176,6 +187,25 @@ export default function Settings() {
             Only fires on days with a planned mobility session.
           </p>
         )}
+      </section>
+
+      {/* Demo Mode */}
+      <section className="space-y-3 animate-fade-up-3">
+        <h2 className="text-[10px] font-semibold text-ink-tertiary uppercase tracking-widest px-1">
+          Demo Mode
+        </h2>
+
+        <div className="bg-surface-1 rounded-2xl border border-white/[.07] divide-y divide-white/[.06]">
+          <div className="flex items-center justify-between px-4 py-4">
+            <div>
+              <p className="text-sm font-medium text-ink-primary">Sample data</p>
+              <p className="text-xs text-ink-tertiary mt-0.5">
+                Browse and interact with realistic sample data instead of your own. Reloads the app.
+              </p>
+            </div>
+            <Toggle on={demoOn} onToggle={toggleDemo} label="Toggle demo mode" />
+          </div>
+        </div>
       </section>
     </div>
   );

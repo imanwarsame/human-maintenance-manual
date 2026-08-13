@@ -1,4 +1,6 @@
 import { supabase } from '../supabaseClient.ts';
+import { isDemoMode } from '../demo/mode.ts';
+import { handleDemoRequest } from '../demo/router.ts';
 
 const BASE = import.meta.env.VITE_API_URL as string ?? '';
 
@@ -9,6 +11,11 @@ async function getAuthHeader(): Promise<Record<string, string>> {
 }
 
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (isDemoMode()) {
+    const body = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
+    return handleDemoRequest<T>(path, init.method ?? 'GET', body);
+  }
+
   const authHeader = await getAuthHeader();
   const resp = await fetch(`${BASE}${path}`, {
     ...init,
