@@ -203,17 +203,28 @@ function computeReadinessForDate(
   const thinBaselines = components.filter((c) => c.baseline_n != null && c.baseline_n < CONFIDENT_BASELINE_N).length;
   const confidence: 'low' | 'high' = components.length < 3 || thinBaselines > 0 ? 'low' : 'high';
 
+  const driverText = (c: ReadinessComponent): string => {
+    const text =
+      c.metric === 'sleep_duration_mins'
+        ? `${c.label} ${formatSleepDuration(c.value)} vs ${formatSleepDuration(c.baseline_mean as number)} baseline`
+        : `${c.label} ${c.value} vs ${c.baseline_mean} baseline`;
+    return `${text} (${impactTag(c.z as number)})`;
+  };
+
   const drivers = [...components]
     .filter((c) => c.z != null)
     .sort((a, b) => Math.abs(b.z as number) - Math.abs(a.z as number))
     .slice(0, 2)
-    .map((c) => {
-      const text =
-        c.metric === 'sleep_duration_mins'
-          ? `${c.label} ${formatSleepDuration(c.value)} vs ${formatSleepDuration(c.baseline_mean as number)} baseline`
-          : `${c.label} ${c.value} vs ${c.baseline_mean} baseline`;
-      return `${text} (${impactTag(c.z as number)})`;
-    });
+    .map(driverText);
+
+  // Total sleep is one of the largest weight blocks (with sleep score) but its z-score
+  // rarely wins the top-2 anomaly ranking above, so surface it explicitly whenever it's
+  // not already included — it's context a reader expects to see regardless of ranking.
+  const sleepDuration = components.find((c) => c.metric === 'sleep_duration_mins' && c.z != null);
+  if (sleepDuration && !drivers.some((d) => d.startsWith(sleepDuration.label))) {
+    drivers.push(driverText(sleepDuration));
+  }
+
   if (drivers.length === 0 && components.some((c) => c.metric === 'acwr')) {
     const acwrComponent = components.find((c) => c.metric === 'acwr')!;
     const tag = acwrComponent.sub_score < 100 ? 'negative' : 'neutral';
