@@ -1,5 +1,5 @@
 import { useReadiness } from '../hooks/useReadiness.ts';
-import type { ReadinessBand } from '../hooks/useReadiness.ts';
+import type { ReadinessBand, ReadinessComponent } from '../hooks/useReadiness.ts';
 
 const BAND_META: Record<ReadinessBand, { label: string; color: string }> = {
   low: { label: 'Low', color: '#ef4444' },
@@ -7,6 +7,53 @@ const BAND_META: Record<ReadinessBand, { label: string; color: string }> = {
   good: { label: 'Good', color: '#22c55e' },
   prime: { label: 'Prime', color: '#8b5cf6' },
 };
+
+// Same thresholds as the overall band, applied per-metric so the breakdown
+// bars read in the same color language as the headline score.
+function subScoreColor(subScore: number): string {
+  if (subScore < 50) return '#ef4444';
+  if (subScore < 70) return '#eab308';
+  if (subScore < 85) return '#22c55e';
+  return '#8b5cf6';
+}
+
+function formatSleepDuration(mins: number): string {
+  const total = Math.round(mins);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${h}h${m}m`;
+}
+
+function formatComponentValue(c: ReadinessComponent): string {
+  if (c.metric === 'sleep_duration_mins') {
+    return c.baseline_mean != null
+      ? `${formatSleepDuration(c.value)} / ${formatSleepDuration(c.baseline_mean)}`
+      : formatSleepDuration(c.value);
+  }
+  if (c.metric === 'acwr') return c.value.toFixed(2);
+  return c.baseline_mean != null ? `${c.value} / ${c.baseline_mean}` : `${c.value}`;
+}
+
+function ComponentBreakdown({ components }: { components: ReadinessComponent[] }) {
+  return (
+    <div className="mt-4 pt-3 border-t border-white/[.06] space-y-2.5">
+      {components.map((c) => (
+        <div key={c.metric} className="flex items-center gap-3">
+          <p className="w-24 shrink-0 text-xs text-ink-tertiary">{c.label}</p>
+          <div className="flex-1 h-1.5 rounded-full bg-white/[.06] overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${c.sub_score}%`, backgroundColor: subScoreColor(c.sub_score) }}
+            />
+          </div>
+          <p className="w-28 shrink-0 text-right text-xs text-ink-muted tabular-nums">
+            {formatComponentValue(c)}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function ReadinessRing({ score, color }: { score: number; color: string }) {
   const size = 64;
@@ -61,27 +108,30 @@ export default function ReadinessCard() {
   const ringColor = lowConfidence ? '#525258' : meta.color;
 
   return (
-    <div className={`flex items-center gap-4 ${lowConfidence ? 'opacity-70' : ''}`}>
-      <ReadinessRing score={data.score} color={ringColor} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-ink-primary">Readiness</p>
-          <span
-            className="text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-full"
-            style={{ color: meta.color, backgroundColor: `${meta.color}1a` }}
-          >
-            {meta.label}
-          </span>
+    <div className={lowConfidence ? 'opacity-70' : ''}>
+      <div className="flex items-center gap-4">
+        <ReadinessRing score={data.score} color={ringColor} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-ink-primary">Readiness</p>
+            <span
+              className="text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-full"
+              style={{ color: meta.color, backgroundColor: `${meta.color}1a` }}
+            >
+              {meta.label}
+            </span>
+          </div>
+          {lowConfidence ? (
+            <p className="text-xs text-ink-muted mt-1">Limited history — still building your baseline</p>
+          ) : data.drivers.length > 0 ? (
+            <p className="text-xs text-ink-tertiary mt-1">{data.drivers.join(' · ')}</p>
+          ) : null}
+          {data.incident_reason && (
+            <p className="text-xs text-ink-muted mt-0.5">Adjusted for {data.incident_reason}</p>
+          )}
         </div>
-        {lowConfidence ? (
-          <p className="text-xs text-ink-muted mt-1">Limited history — still building your baseline</p>
-        ) : data.drivers.length > 0 ? (
-          <p className="text-xs text-ink-tertiary mt-1">{data.drivers.join(' · ')}</p>
-        ) : null}
-        {data.incident_reason && (
-          <p className="text-xs text-ink-muted mt-0.5">Adjusted for {data.incident_reason}</p>
-        )}
       </div>
+      {data.components.length > 0 && <ComponentBreakdown components={data.components} />}
     </div>
   );
 }
