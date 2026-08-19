@@ -195,7 +195,7 @@ export default function Settings() {
           Demo Mode
         </h2>
 
-        <div className="bg-surface-1 rounded-2xl border border-white/[.07] divide-y divide-white/[.06]">
+        <div className="bg-surface-1 rounded-2xl border border-blue-400/20 divide-y divide-white/[.06]">
           <div className="flex items-center justify-between px-4 py-4">
             <div>
               <p className="text-sm font-medium text-ink-primary">Sample data</p>
