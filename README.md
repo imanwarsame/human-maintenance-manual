@@ -37,7 +37,7 @@ Frontend (React/Vite PWA)  ──REST──▶  Backend (Express + MCP)  ──�
 
 - [Node.js](https://nodejs.org) 20+
 - A [Supabase](https://supabase.com) account (free tier works)
-- A [Railway](https://railway.app) account for deployment
+- A hosting provider for deployment (see [Deploying](#4-deploying))
 - An [intervals.icu](https://intervals.icu) account (free — optional, for Garmin activity sync)
 - Claude Desktop or Claude.ai with MCP support
 
@@ -75,7 +75,7 @@ Paste each file's contents into the SQL editor and click Run. Order matters — 
 ### Auth setup
 
 1. In Supabase dashboard → Authentication → Providers, confirm **Email** is enabled.
-2. Go to Authentication → URL Configuration. Add your frontend URL to **Redirect URLs** (e.g. `https://your-frontend.railway.app`).
+2. Go to Authentication → URL Configuration. Add your frontend URL to **Redirect URLs** (e.g. `https://your-frontend.example.com`).
 3. The app uses magic link (passwordless) login — no password setup needed.
 
 ---
@@ -143,39 +143,35 @@ Open `http://localhost:5173`, enter your email, and check your inbox for the mag
 
 ---
 
-## 4. Deploying on Railway
+## 4. Deploying
 
-Railway is the simplest option because both `railway.json` config files are already included in the repo. The frontend and backend deploy as two separate Railway services.
+The frontend and backend deploy as two separate services, each built from its own subdirectory.
 
-### Backend service
+### Backend
+
+The backend needs a persistent process (not serverless), since it also runs a 5-minute polling loop for Garmin/wellness sync and scheduled reminder jobs. Fly.io, Render, or any other platform that runs a long-lived Node.js process will work.
 
 1. Push your repo to GitHub.
-2. In Railway, create a **New Project** → **Deploy from GitHub repo**.
-3. Select your repo. When asked for root directory, set it to **`backend/`**.
-4. Railway will detect `railway.json` and use `npm run start` automatically.
-5. Add all backend environment variables in the service's **Variables** tab.
-6. Once deployed, copy the generated URL (e.g. `https://backend-production-xxxx.up.railway.app`).
-7. Update the backend `APP_URL` variable to this URL.
+2. Create a service pointed at your repo with root directory **`backend/`**.
+3. Set the build command to `npm run build` and the start command to `npm run start`.
+4. Add all backend environment variables in the service's dashboard.
+5. Once deployed, copy the generated URL and update the backend `APP_URL` variable to match it.
 
-### Frontend service
+### Frontend
 
-1. In the same Railway project, click **New Service** → **GitHub Repo** again.
-2. Set root directory to **`frontend/`**.
-3. Railway will detect `railway.json` and run `npm run build` then `npx serve -s dist`.
-4. Add all frontend environment variables, pointing `VITE_API_URL` at your backend URL.
-5. Update `FRONTEND_URL` in the backend variables to match the frontend URL.
-6. Update your Supabase redirect URL in Authentication settings to include the frontend Railway URL.
+Vercel, Netlify, or any static host works — the frontend builds to a static bundle.
+
+1. Create a service pointed at your repo with root directory **`frontend/`**.
+2. Set the build command to `npm run build` and serve the `dist/` output (e.g. `npx serve -s dist -l $PORT`).
+3. Add all frontend environment variables, pointing `VITE_API_URL` at your backend URL.
+4. Update `FRONTEND_URL` in the backend variables to match the frontend URL.
+5. Update your Supabase redirect URL in Authentication settings to include the frontend URL.
 
 ### Health check
 
 ```
-GET https://your-backend.railway.app/health
+GET https://your-backend.example.com/health
 ```
-
-### Alternative platforms
-
-- **Frontend**: Vercel or Netlify both work. Set `VITE_*` env vars in their dashboards.
-- **Backend**: Fly.io, Render, or any platform that runs Node.js. The backend needs a persistent process (not serverless) since it also runs a 5-minute polling loop for Garmin/wellness sync and scheduled reminder jobs.
 
 ---
 
@@ -193,7 +189,7 @@ Activity and wellness sync flow: **Garmin → intervals.icu** (via Garmin's buil
 4. Backfill existing activities:
 
 ```bash
-curl -X POST https://your-backend.railway.app/garmin/sync-all
+curl -X POST https://your-backend.example.com/garmin/sync-all
 ```
 
 New activities appear within ~5 minutes of your watch syncing (backend polls intervals.icu). Trigger an immediate sync with `POST /garmin/sync` or by asking Claude to run the `sync_garmin` MCP tool.
@@ -224,7 +220,7 @@ Open `claude_desktop_config.json` (Mac: `~/Library/Application Support/Claude/cl
 {
   "mcpServers": {
     "human-maintenance-manual": {
-      "url": "https://your-backend.railway.app/mcp",
+      "url": "https://your-backend.example.com/mcp",
       "headers": {
         "Authorization": "Bearer your-MCP_SECRET-value"
       }
