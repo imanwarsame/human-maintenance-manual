@@ -17,6 +17,20 @@ function subScoreColor(subScore: number): string {
   return '#8b5cf6';
 }
 
+// ACWR's readiness sub_score deliberately saturates at 100 for any value up to the
+// 1.3 "optimal" ceiling (low ACWR isn't penalised), which would pin this bar full and
+// purple across most of its real-world range. So the bar plots the raw ratio on its
+// own 0-2.0 scale instead, colored by the same 1.3/1.8 zones the backend scores against.
+const ACWR_BAR_MAX = 2.0;
+function acwrBarPercent(value: number): number {
+  return Math.min(100, Math.max(0, (value / ACWR_BAR_MAX) * 100));
+}
+function acwrBarColor(value: number): string {
+  if (value >= 1.8) return '#ef4444';
+  if (value >= 1.3) return '#eab308';
+  return '#22c55e';
+}
+
 function formatSleepDuration(mins: number): string {
   const total = Math.round(mins);
   const h = Math.floor(total / 60);
@@ -37,20 +51,22 @@ function formatComponentValue(c: ReadinessComponent): string {
 function ComponentBreakdown({ components }: { components: ReadinessComponent[] }) {
   return (
     <div className="mt-4 pt-3 border-t border-white/[.06] space-y-2.5">
-      {components.map((c) => (
-        <div key={c.metric} className="flex items-center gap-3">
-          <p className="w-24 shrink-0 text-xs text-ink-tertiary">{c.label}</p>
-          <div className="flex-1 h-1.5 rounded-full bg-white/[.06] overflow-hidden">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${c.sub_score}%`, backgroundColor: subScoreColor(c.sub_score) }}
-            />
+      {components.map((c) => {
+        const isAcwr = c.metric === 'acwr';
+        const percent = isAcwr ? acwrBarPercent(c.value) : c.sub_score;
+        const color = isAcwr ? acwrBarColor(c.value) : subScoreColor(c.sub_score);
+        return (
+          <div key={c.metric} className="flex items-center gap-3">
+            <p className="w-24 shrink-0 text-xs text-ink-tertiary">{c.label}</p>
+            <div className="flex-1 h-1.5 rounded-full bg-white/[.06] overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: color }} />
+            </div>
+            <p className="w-28 shrink-0 text-right text-xs text-ink-muted tabular-nums">
+              {formatComponentValue(c)}
+            </p>
           </div>
-          <p className="w-28 shrink-0 text-right text-xs text-ink-muted tabular-nums">
-            {formatComponentValue(c)}
-          </p>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
