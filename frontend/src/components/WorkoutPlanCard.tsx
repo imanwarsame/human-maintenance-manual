@@ -173,7 +173,14 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
                 </button>
 
                 {editingSetsReps === i ? (
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div
+                    className="flex items-center gap-1 shrink-0"
+                    onBlur={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        saveSetsReps(i);
+                      }
+                    }}
+                  >
                     <input
                       type="number"
                       min={1}
@@ -184,7 +191,6 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
                         if (e.key === 'Enter') saveSetsReps(i);
                         if (e.key === 'Escape') setEditingSetsReps(null);
                       }}
-                      onBlur={() => saveSetsReps(i)}
                       autoFocus
                       className="w-9 text-xs text-center bg-surface-2 border border-brand-500/40 rounded-md px-1 py-0.5 text-ink-primary focus:outline-none focus:ring-1 focus:ring-brand-500/50"
                     />
@@ -199,7 +205,6 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
                         if (e.key === 'Enter') saveSetsReps(i);
                         if (e.key === 'Escape') setEditingSetsReps(null);
                       }}
-                      onBlur={() => saveSetsReps(i)}
                       className="w-9 text-xs text-center bg-surface-2 border border-brand-500/40 rounded-md px-1 py-0.5 text-ink-primary focus:outline-none focus:ring-1 focus:ring-brand-500/50"
                     />
                   </div>
