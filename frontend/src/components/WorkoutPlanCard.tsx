@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { Exercise } from '../types/index.ts';
 import { useUpdateExerciseWeights } from '../hooks/useExerciseWeights.ts';
 import { api } from '../api/client.ts';
@@ -38,6 +38,7 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
   const [setsInput, setSetsInput] = useState('');
   const [repsInput, setRepsInput] = useState('');
   const [localSetsReps, setLocalSetsReps] = useState<Record<number, { sets: number; reps: number }>>({});
+  const setsRepsRef = useRef<HTMLDivElement>(null);
   const { mutate: updateWeights } = useUpdateExerciseWeights();
 
   const buildAndPersist = useCallback(
@@ -107,6 +108,18 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
     buildAndPersist(completed, localWeights, nextSetsReps);
   }
 
+  // Commit only once focus has left the whole sets × reps group. We defer and
+  // inspect document.activeElement rather than relying on blur's relatedTarget,
+  // which iOS Safari frequently reports as null when tapping between inputs.
+  function handleSetsRepsBlur(i: number) {
+    setTimeout(() => {
+      const container = setsRepsRef.current;
+      if (!container) return; // editing already closed (Enter/Escape)
+      if (container.contains(document.activeElement)) return; // moved sets → reps
+      saveSetsReps(i);
+    }, 0);
+  }
+
   const emoji = TYPE_EMOJI[type] ?? '🏋️';
   const done = completed.size;
   const total = exercises.length;
@@ -174,12 +187,9 @@ export default function WorkoutPlanCard({ activityId, type, notes, duration_mins
 
                 {editingSetsReps === i ? (
                   <div
+                    ref={setsRepsRef}
                     className="flex items-center gap-1 shrink-0"
-                    onBlur={(e) => {
-                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                        saveSetsReps(i);
-                      }
-                    }}
+                    onBlur={() => handleSetsRepsBlur(i)}
                   >
                     <input
                       type="number"
