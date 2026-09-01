@@ -163,7 +163,7 @@ export default function ActivityCard({ activity, onDelete }: Props) {
             </div>
           </div>
           <p className="text-xs text-ink-tertiary mt-0.5">{date}</p>
-          <div className="flex gap-3 mt-1 text-xs text-ink-secondary num">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-ink-secondary num">
             {fiveKSecs != null
               ? <span>{formatRunTime(fiveKSecs)}</span>
               : (() => {
@@ -176,6 +176,9 @@ export default function ActivityCard({ activity, onDelete }: Props) {
             }
             {activity.distance_km && <span>{activity.distance_km} km</span>}
             {activity.avg_hr && <span>♥ {activity.avg_hr} bpm</span>}
+            {activity.raw_json?.calories != null && activity.raw_json.calories > 0 && (
+              <span>{Math.round(activity.raw_json.calories)} kcal</span>
+            )}
           </div>
           {activity.type === 'run' && activity.raw_json && (
             <div className="flex flex-wrap gap-3 mt-1 text-xs text-ink-tertiary num">
@@ -190,9 +193,6 @@ export default function ActivityCard({ activity, onDelete }: Props) {
               )}
               {activity.raw_json.max_heartrate != null && (
                 <span>♥ {activity.raw_json.max_heartrate} max</span>
-              )}
-              {activity.raw_json.calories != null && activity.raw_json.calories > 0 && (
-                <span>{activity.raw_json.calories} kcal</span>
               )}
             </div>
           )}
