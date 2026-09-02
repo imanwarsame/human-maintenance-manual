@@ -63,6 +63,12 @@ const METRIC_CONFIGS: MetricConfig[] = [
 ];
 const ACWR_WEIGHT = 15;
 
+// z-scores inside this band are treated as "in line with baseline" rather than a
+// positive/negative driver — without it, a trivial deviation (e.g. sleep 1 minute
+// under baseline) still carries a slightly-negative z, which flipped the sub_score
+// below 50 and coloured the component red despite being noise, not a real signal.
+const Z_DEADBAND = 0.25;
+
 // Minimum observations to compute a self-referenced baseline at all.
 const MIN_BASELINE_N = 7;
 // Below this, the baseline is included but flagged as thin (drags overall confidence to 'low').
@@ -146,6 +152,7 @@ function computeReadinessForDate(
     let z = sd > 0 ? (todayValue - mean) / sd : 0;
     if (cfg.invert) z = -z;
     z = clamp(z, -2.5, 2.5);
+    if (Math.abs(z) < Z_DEADBAND) z = 0;
     const subScore = clamp(50 + 20 * z, 0, 100);
 
     components.push({
