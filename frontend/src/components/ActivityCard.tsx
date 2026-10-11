@@ -132,8 +132,13 @@ export default function ActivityCard({ activity, onDelete }: Props) {
     activity.distance_km != null &&
     activity.distance_km >= 4.8 &&
     activity.distance_km <= 5.2;
-  const fiveKSecs = fiveKEffort?.elapsed_time ??
-    (isFiveKRun && activity.raw_json?.elapsed_time != null ? activity.raw_json.elapsed_time : undefined);
+  // A ~5k run shows its elapsed time as the headline; a longer run keeps its
+  // full moving time and shows the best 5k split alongside, labelled
+  const fiveKRunSecs = isFiveKRun
+    ? fiveKEffort?.elapsed_time ?? activity.raw_json?.elapsed_time ?? undefined
+    : undefined;
+  const fiveKSplitSecs = !isFiveKRun ? fiveKEffort?.elapsed_time : undefined;
+  const movingSecs = activity.raw_json?.moving_time;
 
   return (
     <div
@@ -164,15 +169,16 @@ export default function ActivityCard({ activity, onDelete }: Props) {
           </div>
           <p className="text-xs text-ink-tertiary mt-0.5">{date}</p>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-ink-secondary num">
-            {fiveKSecs != null
-              ? <span>{formatRunTime(fiveKSecs)}</span>
-              : (() => {
-                  const movingSecs = activity.raw_json?.moving_time;
-                  const mins = movingSecs != null
-                    ? Math.round(movingSecs / 60)
-                    : activity.duration_mins;
-                  return mins != null ? <span>{mins} min</span> : null;
-                })()
+            {fiveKRunSecs != null
+              ? <span>{formatRunTime(fiveKRunSecs)}</span>
+              : activity.type === 'run' && movingSecs != null
+                ? <span>{formatRunTime(Math.round(movingSecs))}</span>
+                : (() => {
+                    const mins = movingSecs != null
+                      ? Math.round(movingSecs / 60)
+                      : activity.duration_mins;
+                    return mins != null ? <span>{mins} min</span> : null;
+                  })()
             }
             {activity.distance_km && <span>{activity.distance_km} km</span>}
             {activity.avg_hr && <span>♥ {activity.avg_hr} bpm</span>}
@@ -184,6 +190,9 @@ export default function ActivityCard({ activity, onDelete }: Props) {
             <div className="flex flex-wrap gap-3 mt-1 text-xs text-ink-tertiary num">
               {activity.raw_json.average_speed != null && activity.raw_json.average_speed > 0 && (
                 <span>{formatPace(activity.raw_json.average_speed)} /km</span>
+              )}
+              {fiveKSplitSecs != null && (
+                <span>5k {formatRunTime(fiveKSplitSecs)}</span>
               )}
               {activity.raw_json.average_cadence != null && (
                 <span>{Math.round(activity.raw_json.average_cadence * 2)} spm</span>
