@@ -14,6 +14,12 @@ import {
   startMobilityReminderScheduler,
 } from "./scheduler/reminders.js";
 
+// Log rather than crash on a stray rejected promise — Node exits the whole
+// process on an unhandled rejection by default, taking the API and MCP down.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+
 const app = express();
 const PORT = Number(process.env.PORT ?? 3000);
 

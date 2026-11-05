@@ -50,8 +50,21 @@ export function mountMcp(app: Express): void {
       transport.close();
     });
 
-    const server = createMcpServer();
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
+    try {
+      const server = createMcpServer();
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    } catch (err) {
+      // Express 4 does not catch rejected promises from async handlers, so an
+      // error here would otherwise be an unhandled rejection and kill the process.
+      console.error('MCP request failed:', err);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: { code: -32603, message: 'Internal server error' },
+          id: null,
+        });
+      }
+    }
   });
 }
