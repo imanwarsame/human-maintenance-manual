@@ -8,27 +8,109 @@ const BAND_META: Record<ReadinessBand, { label: string; color: string }> = {
   prime: { label: 'Prime', color: '#8b5cf6' },
 };
 
-// Same thresholds as the overall band, applied per-metric so the breakdown
-// bars read in the same color language as the headline score.
-function subScoreColor(subScore: number): string {
-  if (subScore < 50) return '#ef4444';
-  if (subScore < 70) return '#eab308';
-  if (subScore < 85) return '#22c55e';
-  return '#8b5cf6';
+const RED = '#ef4444';
+const YELLOW = '#eab308';
+const GREEN = '#22c55e';
+const PURPLE = '#8b5cf6';
+
+// The bars are a display of each metric on its own scale, NOT the z-score sub_score
+// the backend blends into the headline number (plotting that put "at baseline" at 50%
+// and needed a ~+2.5 SD day to fill the bar).
+//
+// Wellness metrics use a diminishing-returns curve pivoted on the personal 28-day
+// average: the bar moves fastest just either side of average (where day-to-day
+// differences matter most) and flattens towards the extremes, so going from good to
+// great still shows but going from great to absurd barely does. Each metric has a
+// floor (bar ~empty) and a ceiling (bar ~full) that bound the curve.
+interface BarScale {
+  percent: number;
+  color: string;
 }
 
-// ACWR's readiness sub_score deliberately saturates at 100 for any value up to the
-// 1.3 "optimal" ceiling (low ACWR isn't penalised), which would pin this bar full and
-// purple across most of its real-world range. So the bar plots the raw ratio on its
-// own 0-2.0 scale instead, colored by the same 1.3/1.8 zones the backend scores against.
-const ACWR_BAR_MAX = 2.0;
-function acwrBarPercent(value: number): number {
-  return Math.min(100, Math.max(0, (value / ACWR_BAR_MAX) * 100));
+function scaleLinear(value: number, empty: number, full: number): number {
+  return Math.min(100, Math.max(0, ((value - empty) / (full - empty)) * 100));
 }
-function acwrBarColor(value: number): string {
-  if (value >= 1.8) return '#ef4444';
-  if (value >= 1.3) return '#eab308';
-  return '#22c55e';
+
+// Where the personal average sits on the bar. Above 50% so "a normal day" doesn't
+// look half-empty, but with headroom so better-than-normal days are visible.
+const PIVOT_PERCENT = 60;
+// tanh(1.5) ≈ 0.905, so the ceiling lands at ~96% and the floor at ~6%. Values past
+// them keep creeping towards 100%/0% rather than hard-clipping.
+const CURVE_STEEPNESS = 1.5;
+
+// Works for inverted metrics too: pass ceiling < floor (e.g. resting HR).
+function curvePercent(value: number, pivot: number, floor: number, ceiling: number): number {
+  const dir = ceiling >= floor ? 1 : -1;
+  // If the average sits outside (or right on) floor/ceiling, keep a sliver of span so
+  // the curve stays defined and still responds to small changes.
+  const minSpan = Math.abs(ceiling - floor) * 0.05;
+  const upSpan = Math.max((ceiling - pivot) * dir, minSpan);
+  const downSpan = Math.max((pivot - floor) * dir, minSpan);
+  const d = (value - pivot) * dir;
+  if (d >= 0) return PIVOT_PERCENT + (100 - PIVOT_PERCENT) * Math.tanh((CURVE_STEEPNESS * d) / upSpan);
+  return PIVOT_PERCENT - PIVOT_PERCENT * Math.tanh((CURVE_STEEPNESS * -d) / downSpan);
+}
+
+// Garmin sleep score. Colour follows Garmin's own bands (Excellent 90+, Good 80-89,
+// Fair 60-79, Poor <60). Curve bounded by 40 (floor) and 95 (ceiling).
+function sleepScoreBar(value: number, baseline: number | null): BarScale {
+  const color = value >= 90 ? PURPLE : value >= 80 ? GREEN : value >= 60 ? YELLOW : RED;
+  return { percent: curvePercent(value, baseline ?? 75, 40, 95), color };
+}
+
+// Sleep duration in minutes. Curve bounded by 5h (floor) and 9h (ceiling).
+function sleepDurationBar(mins: number, baseline: number | null): BarScale {
+  const h = mins / 60;
+  const color = h >= 8 ? PURPLE : h >= 7 ? GREEN : h >= 6 ? YELLOW : RED;
+  return { percent: curvePercent(mins, baseline ?? 420, 300, 540), color };
+}
+
+// HRV has no universal absolute range, so it's purely relative: 75% of average is
+// the floor, 125% the ceiling.
+function hrvBar(value: number, baseline: number): BarScale {
+  const ratio = value / baseline;
+  const color = ratio >= 1.1 ? PURPLE : ratio >= 0.97 ? GREEN : ratio >= 0.9 ? YELLOW : RED;
+  return { percent: curvePercent(ratio, 1, 0.75, 1.25), color };
+}
+
+// Resting HR is inverted (lower is better): 112% of average is the floor, 90% the
+// ceiling.
+function restingHrBar(value: number, baseline: number): BarScale {
+  const ratio = value / baseline;
+  const color = ratio <= 0.95 ? PURPLE : ratio <= 1.03 ? GREEN : ratio <= 1.08 ? YELLOW : RED;
+  return { percent: curvePercent(ratio, 1, 1.12, 0.9), color };
+}
+
+// ACWR's readiness sub_score saturates at 100 for anything up to the 1.3 "optimal"
+// ceiling (low ACWR isn't penalised), so plot the raw ratio on a 0-2.0 scale,
+// coloured by the same 1.3/1.8 zones the backend scores against.
+function acwrBar(value: number): BarScale {
+  const color = value >= 1.8 ? RED : value >= 1.3 ? YELLOW : GREEN;
+  return { percent: scaleLinear(value, 0, 2.0), color };
+}
+
+// Fallback for any metric without a bespoke scale: the backend sub_score with the
+// same thresholds as the overall band.
+function subScoreBar(subScore: number): BarScale {
+  const color = subScore < 50 ? RED : subScore < 70 ? YELLOW : subScore < 85 ? GREEN : PURPLE;
+  return { percent: subScore, color };
+}
+
+function componentBar(c: ReadinessComponent): BarScale {
+  switch (c.metric) {
+    case 'sleep_score':
+      return sleepScoreBar(c.value, c.baseline_mean);
+    case 'sleep_duration_mins':
+      return sleepDurationBar(c.value, c.baseline_mean);
+    case 'hrv':
+      return c.baseline_mean ? hrvBar(c.value, c.baseline_mean) : subScoreBar(c.sub_score);
+    case 'resting_hr':
+      return c.baseline_mean ? restingHrBar(c.value, c.baseline_mean) : subScoreBar(c.sub_score);
+    case 'acwr':
+      return acwrBar(c.value);
+    default:
+      return subScoreBar(c.sub_score);
+  }
 }
 
 function formatSleepDuration(mins: number): string {
@@ -52,9 +134,7 @@ function ComponentBreakdown({ components }: { components: ReadinessComponent[] }
   return (
     <div className="mt-4 pt-3 border-t border-white/[.06] space-y-2.5">
       {components.map((c) => {
-        const isAcwr = c.metric === 'acwr';
-        const percent = isAcwr ? acwrBarPercent(c.value) : c.sub_score;
-        const color = isAcwr ? acwrBarColor(c.value) : subScoreColor(c.sub_score);
+        const { percent, color } = componentBar(c);
         return (
           <div key={c.metric} className="flex items-center gap-3">
             <p className="w-24 shrink-0 text-xs text-ink-tertiary">{c.label}</p>
