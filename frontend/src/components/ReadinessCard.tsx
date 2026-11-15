@@ -13,12 +13,15 @@ const YELLOW = '#eab308';
 const GREEN = '#22c55e';
 const PURPLE = '#8b5cf6';
 
-// The bars are a display of each metric on its own sensible scale, NOT the z-score
-// sub_score the backend blends into the headline number. Plotting the sub_score put
-// "at baseline" at 50% and needed a ~+2.5 SD day to fill the bar, so a genuinely
-// excellent night (e.g. sleep score 90) read as a 60-70% bar. Each metric now has a
-// range where "full" means "about as good as it realistically gets", and a colour
-// scale native to that metric.
+// The bars are a display of each metric on its own scale, NOT the z-score sub_score
+// the backend blends into the headline number (plotting that put "at baseline" at 50%
+// and needed a ~+2.5 SD day to fill the bar).
+//
+// Wellness metrics use a diminishing-returns curve pivoted on the personal 28-day
+// average: the bar moves fastest just either side of average (where day-to-day
+// differences matter most) and flattens towards the extremes, so going from good to
+// great still shows but going from great to absurd barely does. Each metric has a
+// floor (bar ~empty) and a ceiling (bar ~full) that bound the curve.
 interface BarScale {
   percent: number;
   color: string;
@@ -28,34 +31,54 @@ function scaleLinear(value: number, empty: number, full: number): number {
   return Math.min(100, Math.max(0, ((value - empty) / (full - empty)) * 100));
 }
 
-// Garmin sleep score: absolute 0-100 with its own bands (Excellent 90+, Good 80-89,
-// Fair 60-79, Poor <60). 95 fills the bar — scores above that are vanishingly rare.
-function sleepScoreBar(value: number): BarScale {
-  const color = value >= 90 ? PURPLE : value >= 80 ? GREEN : value >= 60 ? YELLOW : RED;
-  return { percent: scaleLinear(value, 40, 95), color };
+// Where the personal average sits on the bar. Above 50% so "a normal day" doesn't
+// look half-empty, but with headroom so better-than-normal days are visible.
+const PIVOT_PERCENT = 60;
+// tanh(1.5) ≈ 0.905, so the ceiling lands at ~96% and the floor at ~6%. Values past
+// them keep creeping towards 100%/0% rather than hard-clipping.
+const CURVE_STEEPNESS = 1.5;
+
+// Works for inverted metrics too: pass ceiling < floor (e.g. resting HR).
+function curvePercent(value: number, pivot: number, floor: number, ceiling: number): number {
+  const dir = ceiling >= floor ? 1 : -1;
+  // If the average sits outside (or right on) floor/ceiling, keep a sliver of span so
+  // the curve stays defined and still responds to small changes.
+  const minSpan = Math.abs(ceiling - floor) * 0.05;
+  const upSpan = Math.max((ceiling - pivot) * dir, minSpan);
+  const downSpan = Math.max((pivot - floor) * dir, minSpan);
+  const d = (value - pivot) * dir;
+  if (d >= 0) return PIVOT_PERCENT + (100 - PIVOT_PERCENT) * Math.tanh((CURVE_STEEPNESS * d) / upSpan);
+  return PIVOT_PERCENT - PIVOT_PERCENT * Math.tanh((CURVE_STEEPNESS * -d) / downSpan);
 }
 
-// Sleep duration: absolute hours, 4h empty → 9h full.
-function sleepDurationBar(mins: number): BarScale {
+// Garmin sleep score. Colour follows Garmin's own bands (Excellent 90+, Good 80-89,
+// Fair 60-79, Poor <60). Curve bounded by 40 (floor) and 95 (ceiling).
+function sleepScoreBar(value: number, baseline: number | null): BarScale {
+  const color = value >= 90 ? PURPLE : value >= 80 ? GREEN : value >= 60 ? YELLOW : RED;
+  return { percent: curvePercent(value, baseline ?? 75, 40, 95), color };
+}
+
+// Sleep duration in minutes. Curve bounded by 5h (floor) and 9h (ceiling).
+function sleepDurationBar(mins: number, baseline: number | null): BarScale {
   const h = mins / 60;
   const color = h >= 8 ? PURPLE : h >= 7 ? GREEN : h >= 6 ? YELLOW : RED;
-  return { percent: scaleLinear(h, 4, 9), color };
+  return { percent: curvePercent(mins, baseline ?? 420, 300, 540), color };
 }
 
-// HRV has no universal absolute range, so scale against the personal baseline:
-// 70% of baseline empty → 120% full (baseline sits at 60%).
+// HRV has no universal absolute range, so it's purely relative: 75% of average is
+// the floor, 125% the ceiling.
 function hrvBar(value: number, baseline: number): BarScale {
   const ratio = value / baseline;
   const color = ratio >= 1.1 ? PURPLE : ratio >= 0.97 ? GREEN : ratio >= 0.9 ? YELLOW : RED;
-  return { percent: scaleLinear(ratio, 0.7, 1.2), color };
+  return { percent: curvePercent(ratio, 1, 0.75, 1.25), color };
 }
 
-// Resting HR is inverted (lower is better): 115% of baseline empty → 90% full
-// (baseline sits at 60%).
+// Resting HR is inverted (lower is better): 112% of average is the floor, 90% the
+// ceiling.
 function restingHrBar(value: number, baseline: number): BarScale {
   const ratio = value / baseline;
   const color = ratio <= 0.95 ? PURPLE : ratio <= 1.03 ? GREEN : ratio <= 1.08 ? YELLOW : RED;
-  return { percent: scaleLinear(ratio, 1.15, 0.9), color };
+  return { percent: curvePercent(ratio, 1, 1.12, 0.9), color };
 }
 
 // ACWR's readiness sub_score saturates at 100 for anything up to the 1.3 "optimal"
@@ -76,9 +99,9 @@ function subScoreBar(subScore: number): BarScale {
 function componentBar(c: ReadinessComponent): BarScale {
   switch (c.metric) {
     case 'sleep_score':
-      return sleepScoreBar(c.value);
+      return sleepScoreBar(c.value, c.baseline_mean);
     case 'sleep_duration_mins':
-      return sleepDurationBar(c.value);
+      return sleepDurationBar(c.value, c.baseline_mean);
     case 'hrv':
       return c.baseline_mean ? hrvBar(c.value, c.baseline_mean) : subScoreBar(c.sub_score);
     case 'resting_hr':
