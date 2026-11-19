@@ -45,3 +45,22 @@ export async function getCoachingNotesForDateRange(from: string, to: string): Pr
   if (error) throw error;
   return data ?? [];
 }
+
+export async function getLatestCoachingNoteInRange(
+  from: string,
+  to: string,
+  note_type: NoteType
+): Promise<CoachingNote | null> {
+  const { data, error } = await supabase
+    .from('coaching_notes')
+    .select('*')
+    .eq('note_type', note_type)
+    .gte('date', from)
+    .lte('date', to)
+    .order('date', { ascending: false })
+    .order('generated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
