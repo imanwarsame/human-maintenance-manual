@@ -147,6 +147,15 @@ Open `http://localhost:5173`, enter your email, and check your inbox for the mag
 
 The frontend and backend deploy as two separate services, each built from its own subdirectory.
 
+> **Reminder: current hosting, and the backend does not auto-deploy.**
+>
+> | Service | Host | Deploys on merge to `main`? |
+> |---|---|---|
+> | Frontend (`frontend/`) | Cloudflare Workers | Yes, automatically |
+> | Backend (`backend/`) | Render | **No, trigger a manual deploy** |
+>
+> After merging anything that touches `backend/` (API routes, queries, MCP tools, scheduler), open the Render dashboard → backend service → **Manual Deploy → Deploy latest commit**. A Cloudflare deploy alone only ships the UI, so backend fixes won't show up until Render is redeployed.
+
 ### Backend
 
 The backend needs a persistent process (not serverless), since it also runs a 5-minute polling loop for Garmin/wellness sync and scheduled reminder jobs. Fly.io, Render, or any other platform that runs a long-lived Node.js process will work.

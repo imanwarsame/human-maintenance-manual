@@ -20,6 +20,9 @@ npm run build:backend  # tsc → dist/
 
 No lint or test scripts are configured.
 
+### Deployment
+Frontend is on **Cloudflare Workers** (auto-deploys from `main`). Backend is on **Render** and must be **manually deployed** after merging. Whenever a change touches `backend/`, remind the user to run Manual Deploy → Deploy latest commit in Render.
+
 ## Architecture
 
 This is a **monorepo health-tracking app** for a single user (Iman). Claude acts as the intelligence layer — writing meal plans, workout plans, coaching notes, and tracking illness/injury incidents — while the app is the logging UI and data store.
